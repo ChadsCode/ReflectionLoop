@@ -1,0 +1,3887 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReflectionLoop</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔒</text></svg>">
+    <!-- 
+	===================================================================
+	ReflectionLoop - Privacy-Focused Text Analysis Tool
+	Purpose: Detect and redact personally identifiable information (PII) 
+	and protected health information (PHI) from text documents
+	Author: Chad Wigington
+	Contact: https://www.linkedin.com/in/chadwigington/
+	===================================================================
+	-->
+
+    <style>
+        /* Classic theme with responsive design and performance optimization */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Tahoma', 'MS Sans Serif', sans-serif;
+            font-size: 11px;
+            background: #D4D0C8;
+            color: #000000;
+            overflow: hidden;
+            height: 100vh;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+
+        @media (max-width: 768px) {
+            body {
+                font-size: 12px;
+                overflow: auto;
+                height: auto;
+                min-height: 100vh;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                font-size: 13px;
+            }
+        }
+
+        .window {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #D4D0C8;
+            border: 2px solid;
+            border-color: #FFFFFF #808080 #808080 #FFFFFF;
+        }
+
+
+
+        @media (max-width: 768px) {
+            .window {
+                height: auto;
+                min-height: 100vh;
+                border: 1px solid;
+                border-color: #FFFFFF #808080 #808080 #FFFFFF;
+            }
+        }
+
+        /* Application title bar styling */
+        .title-bar {
+            background: linear-gradient(to right, #0A246A, #3A6EA5);
+            color: white;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+            font-size: 12px;
+            position: relative;
+            flex-wrap: wrap;
+            min-height: 28px;
+        }
+
+        @media (max-width: 768px) {
+            .title-bar {
+                padding: 6px 4px;
+                font-size: 13px;
+                min-height: 32px;
+            }
+        }
+
+        .title-bar span {
+            margin-left: 5px;
+        }
+
+        .privacy-timer {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 11px;
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .privacy-timer {
+                position: absolute;
+                right: 10px;
+                left: auto;
+                transform: none;
+                order: 2;
+                margin-top: 2px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .title-bar {
+                padding: 8px 4px;
+                min-height: 40px;
+            }
+
+            .title-bar span {
+                font-size: 14px;
+            }
+
+            .auto-clear-timer {
+                position: static;
+                display: block;
+                width: 100%;
+                text-align: center;
+                margin-top: 4px;
+                background: rgba(0, 0, 0, 0.2);
+                padding: 2px;
+                border-radius: 2px;
+            }
+        }
+
+        /* Primary navigation toolbar */
+        .toolbar {
+            background: #D4D0C8;
+            padding: 5px;
+            border-top: 1px solid #FFFFFF;
+            border-bottom: 1px solid #808080;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            flex-wrap: wrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 480px) {
+            .toolbar {
+                flex-direction: row;
+                align-items: center;
+                gap: 3px;
+                padding: 4px;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+                /* Firefox browser compatibility */
+            }
+
+            /* Cross-browser scrollbar visibility control for Safari and Chrome */
+            .toolbar::-webkit-scrollbar {
+                display: none;
+            }
+        }
+
+        .button {
+            min-width: 82px;
+            height: 25px;
+            padding: 0 11px;
+            background: #D4D0C8;
+            border: 2px solid;
+            border-color: #FFFFFF #808080 #808080 #FFFFFF;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            touch-action: manipulation;
+        }
+
+        @media (max-width: 480px) {
+
+            /* Configure toolbar buttons for responsive layout on mobile devices */
+            .toolbar {
+                flex-wrap: wrap;
+                gap: 4px;
+                padding: 6px;
+                overflow-x: visible;
+            }
+
+            .button {
+                flex: 1 1 calc(50% - 4px);
+                /* Optimize button layout for two columns on mobile */
+                min-width: 0;
+                height: 40px;
+                /* Enhanced touch target size for mobile accessibility */
+                font-size: 12px;
+                padding: 0 8px;
+            }
+
+            .button.primary {
+                flex: 1 1 100%;
+                /* Primary action button spans full width for emphasis */
+            }
+
+            textarea {
+                min-height: 125px;
+                /* Maintain optimal textarea height for content visibility */
+            }
+        }
+
+        .button:hover {
+            background: #E4E0D8;
+        }
+
+        .button:active {
+            border-color: #808080 #FFFFFF #FFFFFF #808080;
+            padding-top: 1px;
+            padding-left: 11px;
+        }
+
+        .button:disabled {
+            color: #808080;
+            cursor: default;
+        }
+
+        .button.primary {
+            font-weight: bold;
+            min-width: 110px;
+        }
+
+        @media (max-width: 480px) {
+            .button.primary {
+                min-width: 0;
+                flex: 1.2;
+            }
+        }
+
+        .button.danger {
+            color: #8B0000;
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 4px;
+            gap: 4px;
+            min-height: 0;
+            /* Enable flexible content resizing for optimal layout */
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 6px;
+                gap: 6px;
+                min-height: 400px;
+            }
+
+            /* Responsive panel dimensions for mobile interfaces */
+            .panel.input-panel {
+                flex: 0 0 auto;
+                max-height: 200px;
+            }
+
+            .panel.output-panel {
+                flex: 1;
+                min-height: 250px;
+            }
+
+            /* Configure text areas for optimal touch interaction */
+            textarea,
+            .output-area {
+                -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+                touch-action: manipulation;
+            }
+        }
+
+        .panel {
+            background: #FFFFFF;
+            border: 2px solid;
+            border-color: #808080 #FFFFFF #FFFFFF #808080;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            /* Enable flexible content resizing for optimal layout */
+        }
+
+        /* Input panel maintains consistent dimensions */
+        .panel.input-panel {
+            flex: 0 0 40%;
+        }
+
+        /* Output panel configured for flexible sizing and scroll capability */
+        .panel.output-panel {
+            flex: 1;
+            min-height: 0;
+            /* Enable flexible content resizing for optimal layout */
+        }
+
+        .panel-header {
+            background: #D4D0C8;
+            margin: -4px -4px 4px -4px;
+            padding: 2px 4px;
+            font-weight: bold;
+            border-bottom: 1px solid #808080;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            flex-shrink: 0;
+            /* Maintain consistent header dimensions */
+        }
+
+        textarea {
+            width: 100%;
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border: 1px solid;
+            border-color: #808080 #FFFFFF #FFFFFF #808080;
+            padding: 4px;
+            resize: none;
+            background: #FFFFFF;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            outline: none;
+            min-height: 100px;
+        }
+
+        .output-area {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border: 1px solid;
+            border-color: #808080 #FFFFFF #FFFFFF #808080;
+            padding: 4px;
+            background: #FFFFFF;
+            overflow-y: auto;
+            overflow-x: hidden;
+            white-space: pre-wrap !important;
+            word-wrap: break-word;
+            word-break: normal;
+            overflow-wrap: break-word;
+            -webkit-user-select: text;
+            user-select: text;
+            min-height: 0;
+            max-height: none;
+            -webkit-overflow-scrolling: touch;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .output-area span:first-child {
+            margin: 0;
+            padding: 0;
+            line-height: normal;
+        }
+
+        .output-area[contenteditable="true"] {
+            cursor: text;
+            outline: none;
+        }
+
+        .pii-highlight {
+            background-color: #FFFF99;
+            border: 1px solid #E6E600;
+            padding: 0px 2px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            display: inline-block;
+            word-break: normal;
+            white-space: nowrap;
+            max-width: 100%;
+            vertical-align: baseline;
+            line-height: 1.05;
+            margin: 0;
+        }
+
+        .pii-highlight.excluded {
+            background-color: #E0E0E0;
+            border-color: #808080;
+            opacity: 0.7;
+        }
+
+        .pii-highlight.confidence-high {
+            border-width: 1px;
+            border-color: #FF0000;
+            border-style: solid;
+            font-weight: bold;
+        }
+
+        .pii-highlight.confidence-medium {
+            border-width: 1px;
+            border-color: #FFA500;
+            border-style: solid;
+        }
+
+        .pii-highlight.confidence-low {
+            border-width: 1px;
+            border-color: #0000FF;
+            border-style: solid;
+            opacity: 1.0;
+        }
+
+
+        @keyframes pulse-glow {
+            0% {
+                box-shadow: 0 0 3px #3A6EA5;
+                border-color: #FFFFFF #808080 #808080 #FFFFFF;
+            }
+
+            50% {
+                box-shadow: 0 0 8px #3A6EA5, inset 0 0 3px rgba(58, 110, 165, 0.3);
+                border-color: #3A6EA5 #1A4E85 #1A4E85 #3A6EA5;
+            }
+
+            100% {
+                box-shadow: 0 0 3px #3A6EA5;
+                border-color: #FFFFFF #808080 #808080 #FFFFFF;
+            }
+        }
+
+        .button.pulse {
+            animation: pulse-glow 2s ease-in-out infinite;
+            background: linear-gradient(to bottom, #E4E0D8, #D4D0C8);
+        }
+
+        .footer-link {
+            color: inherit;
+            text-decoration: none;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+
+        .footer-link:hover {
+            color: #0A246A;
+            text-decoration: underline;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: #E0E4FF;
+            border: 1px solid #0000FF;
+            color: #000000;
+            padding: 2px 4px;
+            font-size: 11px;
+            z-index: 1000;
+            white-space: nowrap;
+            display: none;
+            pointer-events: none;
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+
+        .status-bar {
+            background: #D4D0C8;
+            border-top: 1px solid #FFFFFF;
+            padding: 2px 4px;
+            display: flex;
+            font-size: 11px;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        /* Mobile status bar improvements */
+        @media (max-width: 480px) {
+            .status-bar {
+                padding: 4px;
+                font-size: 10px;
+                justify-content: center;
+                text-align: center;
+            }
+
+            .status-panel {
+                flex: 1 1 auto;
+                text-align: center;
+                margin: 2px;
+            }
+
+            .status-panel:last-child {
+                flex: 1 1 100%;
+                margin-top: 4px;
+            }
+        }
+
+        .status-panel {
+            border: 1px solid;
+            border-color: #808080 #FFFFFF #FFFFFF #808080;
+            padding: 2px 8px;
+            margin-right: 4px;
+            flex-shrink: 0;
+        }
+
+        .progress-container {
+            height: 16px;
+            background: #FFFFFF;
+            border: 1px solid;
+            border-color: #808080 #FFFFFF #FFFFFF #808080;
+            margin: 4px 0;
+            visibility: hidden;
+        }
+
+        .progress-container.active {
+            visibility: visible;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: repeating-linear-gradient(90deg,
+                    #0A246A,
+                    #0A246A 8px,
+                    #3A6EA5 8px,
+                    #3A6EA5 16px);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            padding: 4px 0;
+            font-size: 11px;
+            flex-wrap: wrap;
+            min-height: 24px;
+        }
+
+        .stat-item {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .stat-value {
+            font-weight: bold;
+        }
+
+        .spinner {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #808080;
+            border-top: 2px solid #0A246A;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .dialog {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #D4D0C8;
+            border: 2px solid;
+            border-color: #FFFFFF #808080 #808080 #FFFFFF;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            min-width: 300px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .dialog-title {
+            background: linear-gradient(to right, #0A246A, #3A6EA5);
+            color: white;
+            padding: 4px 8px;
+            font-weight: bold;
+        }
+
+        .dialog-content {
+            padding: 16px;
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .dialog-buttons {
+            padding: 8px 16px;
+            text-align: right;
+            border-top: 1px solid #808080;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 999;
+            overflow: hidden;
+        }
+
+        /* === BlurSession.com Security Feature === */
+        #blur-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            /* White with 95% opacity */
+            -webkit-backdrop-filter: blur(15px);
+            backdrop-filter: blur(15px);
+            opacity: 0;
+            visibility: hidden;
+            z-index: 9999;
+            /* High z-index to cover everything */
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        /* When BlurSession.com blur is active */
+        body.blur-active #blur-overlay {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        /* Message in center of BlurSession.com blurred screen */
+        #blur-overlay::after {
+            content: 'Move mouse or touch screen to continue';
+            color: #0A246A;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 16px 32px;
+            border: 2px solid;
+            border-color: #FFFFFF #808080 #808080 #FFFFFF;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        /* ============================================= */
+        /* UTILITY CLASSES FOR CROSS-BROWSER COMPATIBILITY */
+        /* ============================================= */
+
+        /* Hidden file input element styling */
+        .hidden-file-input {
+            display: none;
+        }
+
+        /* Toolbar component styling */
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background: #808080;
+            margin: 0 5px;
+            align-self: center;
+        }
+
+        .toolbar-right {
+            margin-left: auto;
+            display: flex;
+            gap: 5px;
+        }
+
+        .spinner-container {
+            margin-left: 10px;
+        }
+
+        /* Statistics colors */
+        .stat-high {
+            color: #FF0000;
+        }
+
+        .stat-medium {
+            color: #FFA500;
+        }
+
+        .stat-low {
+            color: #0000FF;
+        }
+
+        /* Output area */
+        .output-placeholder {
+            color: #777777;
+        }
+
+        /* Status bar */
+        .status-right {
+            margin-left: auto;
+        }
+
+        /* Export dialog */
+        .export-container {
+            margin: 10px 0;
+        }
+
+        .export-button {
+            width: 100%;
+            margin: 5px 0;
+        }
+
+        /* Help dialog */
+        .help-dialog {
+            min-width: 500px;
+            max-width: 600px;
+        }
+
+        .help-content {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .help-heading {
+            margin-top: 0;
+        }
+
+        .help-step {
+            margin-top: 15px;
+        }
+
+        .help-confidence-high {
+            color: #FF0000;
+            font-weight: bold;
+        }
+
+        .help-confidence-medium {
+            color: #FFA500;
+            font-weight: bold;
+        }
+
+        .help-confidence-low {
+            color: #0000FF;
+            font-weight: bold;
+        }
+
+        .help-section {
+            margin-top: 15px;
+            color: #0A246A;
+        }
+
+        /* Performance guide styling */
+        .performance-box {
+            background: #F0F8FF;
+            border: 1px solid #4682B4;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .performance-title {
+            margin: 0 0 10px 0;
+        }
+
+        .performance-item {
+            margin: 5px 0;
+        }
+
+        .performance-ideal {
+            color: #006400;
+        }
+
+        .performance-good {
+            color: #FF8C00;
+        }
+
+        .performance-reduced {
+            color: #FF6347;
+        }
+
+        .protip-box {
+            background: #FFFACD;
+            border: 1px solid #DAA520;
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 3px;
+        }
+
+        .protip-text {
+            margin: 0;
+            font-size: 11px;
+        }
+
+        .performance-note {
+            margin-top: 10px;
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+        }
+
+        .disclaimer-box {
+            background: #FFFFCC;
+            border: 2px solid #FFD700;
+            padding: 10px;
+            margin: 15px 0;
+            border-radius: 2px;
+        }
+
+        .disclaimer-title {
+            margin: 0;
+            font-weight: bold;
+            color: #8B4513;
+        }
+
+        .disclaimer-text {
+            margin: 5px 0 0 0;
+        }
+
+        .help-footer {
+            margin-top: 15px;
+            color: #0A246A;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- BlurSession.com Overlay -->
+    <div id="blur-overlay"></div>
+
+    <div class="window">
+        <!-- Title bar -->
+        <div class="title-bar">
+            <span>🔒 ReflectionLoop</span>
+            <div class="privacy-timer" id="privacyTimer">
+                Privacy Timer: <span id="timerDisplay">05:00</span>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar" id="userToolbar">
+            <input type="file" id="uploadFile" accept=".txt,.csv" class="hidden-file-input" onchange="loadFile()"
+                aria-label="Upload text or CSV file">
+            <button class="button" onclick="document.getElementById('uploadFile').click()" id="uploadButton">
+                📄 Upload TXT
+            </button>
+            <button class="button" onclick="export_results()" id="exportButton" disabled>
+                💾 Export Report
+            </button>
+            <button class="button" onclick="copy_sanitized()" id="copyButton" disabled>
+                📋 Copy Clean
+            </button>
+            <button class="button" onclick="sanitize_text()" id="sanitizeButton" disabled>
+                ✓ Clean Text
+            </button>
+            <div class="toolbar-separator"></div>
+            <button class="button primary" onclick="detect_pii()" id="detectButton">
+                🔍 Privacy Scan
+            </button>
+            <div class="toolbar-right">
+                <button class="button danger" onclick="clear_all()" id="clearAllButton">
+                    🗑️ Clear All
+                </button>
+                <button class="button" onclick="show_help()">
+                    Help ❓
+                </button>
+            </div>
+            <div class="spinner-container">
+                <span id="spinner" class="spinner"></span>
+            </div>
+        </div>
+
+
+        <!-- Main Content -->
+        <div class="content main-content" id="mainContent">
+            <!-- Input Panel -->
+            <div class="panel input-panel">
+                <div class="panel-header">
+                    <span>Input Text</span>
+                    <span id="inputStats"></span>
+                </div>
+                <textarea id="inputText" placeholder="Paste or type text here to check for personal information."
+                    spellcheck="false"></textarea>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <!-- Detection Stats -->
+            <div class="stats" id="detectionStats">
+                <div class="stat-item">
+                    <span>Total:</span>
+                    <span class="stat-value" id="totalDetections">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>High:</span>
+                    <span class="stat-value stat-high" id="highConfidence">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Medium:</span>
+                    <span class="stat-value stat-medium" id="mediumConfidence">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Low:</span>
+                    <span class="stat-value stat-low" id="lowConfidence">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Excluded:</span>
+                    <span class="stat-value" id="excludedCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Redacted:</span>
+                    <span class="stat-value" id="redactedCount">0</span>
+                </div>
+            </div>
+
+            <!-- Output Panel -->
+            <div class="panel output-panel">
+                <div class="panel-header">
+                    <span>Detection Results (Click highlighted items to exclude from redaction)</span>
+                    <span id="outputStats"></span>
+                </div>
+                <div class="output-area" id="outputText" contenteditable="false"><span
+                        class="output-placeholder">Results will appear here after detection.</span></div>
+            </div>
+        </div>
+
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-panel" id="statusText"><strong>[TEXT REDACTOR]</strong></div>
+            <div class="status-panel status-right">
+                © <a href="https://www.linkedin.com/in/chadwigington/" target="_blank" rel="noopener noreferrer"
+                    class="footer-link">
+                    <strong>Chad Wigington</strong>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dialogs and Overlays -->
+    <div class="overlay" id="overlay"></div>
+
+
+    <!-- Export Dialog -->
+    <div class="dialog" id="exportDialog">
+        <div class="dialog-title">Export Options</div>
+        <div class="dialog-content">
+            <p>Choose export format:</p>
+            <div class="export-container">
+                <button class="button export-button" onclick="export_format('docx')">
+                    📘 Word Document (.docx)
+                </button>
+                <button class="button export-button" onclick="export_format('pdf')">
+                    📕 PDF Document (.pdf)
+                </button>
+                <button class="button export-button" onclick="export_format('csv')">
+                    📊 CSV Report (.csv)
+                </button>
+                <button class="button export-button" onclick="export_format('txt')">
+                    📄 Text File (.txt)
+                </button>
+            </div>
+        </div>
+        <div class="dialog-buttons">
+            <button class="button" onclick="close_dialog()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Help Dialog -->
+    <div class="dialog help-dialog" id="helpDialog">
+        <div class="dialog-title">How to Use ReflectionLoop</div>
+        <div class="dialog-content help-content">
+            <h3 class="help-heading">Welcome to ReflectionLoop!</h3>
+            <p>This tool helps you find and remove private information from your text before sharing it.</p>
+
+            <h4 class="help-step">Step 1: Enter Your Text</h4>
+            <p>• Copy and paste your text into the "Input Text" box<br>
+                &nbsp;&nbsp;- or click "Upload TXT" to load a .TXT or.CSV file</p>
+
+            <h4 class="help-step">Step 2: Find Private Information</h4>
+            <p>• Click the <strong>"Privacy Scan"</strong> button (it will be pulsing/glowing)<br>
+                • The tool will scan for SSN, credit cards, emails, phone numbers, etc.<br>
+                • Found items will be highlighted in the bottom box<br>
+                • The <strong>"Clean Text"</strong> button will start pulsing when detections are found</p>
+
+            <h4 class="help-step">Step 3: Review What Was Found</h4>
+            <p>• Look at the highlighted items<br>
+                • <strong>Border colors show confidence:</strong><br>
+
+                &nbsp;&nbsp;- <span class="help-confidence-high">Red</span>
+                &nbsp;&nbsp;- <span class="help-confidence-medium">Orange</span>
+                &nbsp;&nbsp;- <span class="help-confidence-low">Blue</span> border = Low confidence (pattern only)<br>
+                • Hover over highlights to see confidence level<br>
+                • Click any highlight to KEEP that information (it turns gray)</p>
+
+            <h4 class="help-step">Step 4: Clean Your Text</h4>
+            <p>• Click <strong>"Clean Text"</strong> (it will be pulsing)<br>
+                • Private information becomes <strong>[REDACTED]</strong> placeholders<br>
+                • You can edit the text after cleaning<br>
+                • Both <strong>"Copy Clean"</strong> and <strong>"Clear All"</strong> buttons will start pulsing</p>
+
+            <h4 class="help-step">Step 5: Copy Your Clean Text</h4>
+            <p>• Click <strong>"Copy Clean"</strong> (pulsing) to copy bold [REDACTED] text<br>
+                &nbsp;&nbsp;- Use <strong>"Clear All"</strong> (pulsing) to start over<br>
+                &nbsp;&nbsp;- The Clear All button will continue pulsing until clicked<br>
+                • <strong>"Clear All" to activate new "Privacy Scan"</strong></p>
+
+            <h4 class="help-section">Copy Formatting Guide (Chrome/Edge):</h4>
+            <p>Keep highlighting and bold redactions when pasting to Word/Writer:<br>
+                • <strong>From Detection Results:</strong> CTRL+A CTRL+C and paste into your document for yellow highlighting<br>
+                • <strong>"Copy Clean" button:</strong> Preserves bold <strong>[REDACTED]</strong> placeholders<br>
+                <br>
+                <strong>Windows Copy HIGHLIGHTED Steps:</strong><br>
+                • Click in the Detection Results after "Privacy Scan"<br>
+                • Press <strong>CTRL+A</strong> (select all text)<br>
+                • Press <strong>CTRL+C</strong> (copy with HIGHLIGHTED formatting)<br>
+                • Open Microsoft Word or LibreOffice Writer document<br>
+                • Press <strong>CTRL+V</strong> (paste with HIGHLIGHTED formatting)<br>
+                <br>
+				 <br>
+                <strong>Copy [REDACTED] Steps:</strong><br>
+                • Select <strong>"Privacy Scan"</strong><br>
+                • Select <strong>"Clean Text"</strong><br>
+				• Select <strong>"Copy Clean"</strong><br>
+                • Open Microsoft Word or LibreOffice Writer<br>
+                • Press <strong>CTRL+V</strong> (paste with [REDACTED] formatting)<br>
+                <br>
+                <strong>What transfers to Word/Writer:</strong><br>
+                • <span style="background: #FFFF99; border: 1px solid #E6E600; padding: 0px 2px;">Yellow
+                    highlighting</span> from Detection Results<br>
+                • <span style="border: 1px solid #FF0000; background: #FFFF99; padding: 0px 2px; font-weight: bold;">Red
+                    borders</span> for high confidence items<br>
+                • <span style="border: 1px solid #FFA500; background: #FFFF99; padding: 0px 2px;">Orange borders</span>
+                for medium confidence items<br>
+                • <span style="border: 1px solid #0000FF; background: #FFFF99; padding: 0px 2px;">Blue borders</span>
+                for low confidence items<br>
+                • <strong>[REDACTED]</strong> text appears bold in Word/Writer documents<br>
+                <br>
+                <strong>Pro Tip:</strong> Use manual copy (CTRL+A, CTRL+C) instead of "Copy Clean" button for
+                preservation of highlighted text.<br><br>
+                <em>Firefox only: Redacted bold copy/paste works, highlight copy/paste does not. For highlight
+                    copy/paste, use Chrome or Edge.</em>
+            </p>
+
+            <h4 class="help-section">Understanding Confidence Scores:</h4>
+            <p><strong>What makes detection confidence high?</strong><br>
+                • <strong>High:</strong> Keywords found nearby (e.g., "SSN:" before numbers)<br>
+                • <strong>Medium:</strong> Some context present (e.g., "call" near phone pattern)<br>
+                • <strong>Low:</strong> Pattern matches but no supporting context<br>
+                <br>
+                <strong>Statistics show:</strong><br>
+                • Total detections and breakdown by confidence<br>
+                • Higher confidence = more likely to be sensitive data<br>
+                • Review low confidence items carefully - they might be false positives
+            </p>
+
+            <h4 class="help-section">Pulsing Button Guide:</h4>
+            <p>The buttons will pulse/glow to guide you through each step:<br>
+                • <strong>Privacy Scan</strong> pulses when you enter text<br>
+                • <strong>Clean Text</strong> pulses after detection finds PII/PHI<br>
+                • <strong>Copy Clean</strong> and <strong>Clear All</strong> pulse after "Privacy Scan"<br>
+                • Follow the pulsing buttons for the easiest workflow!</p>
+
+            <h4 class="help-section">Export Report Guide:</h4>
+            <p>To download files click "Export Report" for Export Options:<br>
+                • <strong>Word/Writer Document</strong> automatic download .docx file format<br>
+                • <strong>PDF Document</strong> print to .pdf, not automatic for security<br>
+                • <strong>CSV Report</strong> automatic download .csv file format<br>
+                • <strong>Text File</strong> automatic download .txt file format<br>
+                &nbsp;&nbsp;-<em>If "Export Report" before "Clean Text" exports auto redacted</em></p>
+
+            <h4 class="help-section">File Name Guide:</h4>
+            <p>Downloaded files will be automatically named except PDF:<br>
+                • <strong>Word Document</strong> .docx CURRENT DATE ReflectionLoop - Report<br>
+                • <strong>PDF Document</strong> .pdf = user names<br>
+                • <strong>CSV Report</strong> .csv CURRENT DATE ReflectionLoop - Report<br>
+                • <strong>Text File</strong> .txt CURRENT DATE ReflectionLoop - Report</p>
+
+            <h4 class="help-section">Privacy Timer Guide:</h4>
+            <p>Privacy Timer and Screen Blur information:<br>
+                • <strong>Privacy Timer</strong> starts after "Privacy Scan" finds data<br>
+                • <strong>Screen Blur</strong> every 45 seconds inactive session, move mouse or touch screen<br>
+                • <strong>Privacy Timer</strong> and <strong>Screen Blur</strong> designed for security<br>
+                &nbsp;&nbsp;- Timer countdown 5 minutes, then auto-clears data for security.<br>
+                &nbsp;&nbsp;- Blur and data clear together when timer expires.</p>
+
+            <h4 class="help-section">Performance Guidelines:</h4>
+            <div
+                style="background: #F0F8FF; border: 1px solid #4682B4; padding: 10px; margin: 10px 0; border-radius: 4px;">
+                <p style="margin: 0 0 10px 0;"><strong>Document Size Recommendations:</strong></p>
+
+                <p style="margin: 5px 0;"><strong style="color: #006400;">Ideal Performance (Field
+                        Laptops):</strong><br>
+                    • Up to 10,000 words (≈23 pages single-spaced)<br>
+                    • ~250 detections typical<br>
+                    • <em>Smooth operation on all devices</em></p>
+
+                <p style="margin: 5px 0;"><strong style="color: #FF8C00;">Good Performance:</strong><br>
+                    • Up to 25,000 words (≈58 pages single-spaced)<br>
+                    • ~600 detections typical<br>
+                    • <em>Minor lag only during export</em></p>
+
+                <p style="margin: 5px 0;"><strong style="color: #FF6347;">Reduced Performance:</strong><br>
+                    • 50,000-100,000 words (115-230 pages single-spaced)<br>
+                    • 1,200-2,500 detections typical<br>
+                    • <em>Noticeable lag, use "Copy Clean" for best results</em></p>
+
+                <div
+                    style="background: #FFFACD; border: 1px solid #DAA520; padding: 8px; margin-top: 10px; border-radius: 3px;">
+                    <p style="margin: 0; font-size: 11px;"><strong>Pro Tip:</strong> Documents over 25,000 words, split
+                        into sections for optimal review performance.</p>
+                </div>
+            </div>
+
+            <p style="margin-top: 10px; font-size: 10px; color: #666; text-align: center;">
+                <em>Tested on: Intel i5 @ 2.40GHz, Intel(R) Iris(R) Xe Graphics, 32GB RAM</em>
+                <br>
+                <em>Browsers Tested: Chrome, Edge, Firefox (no console errors)</em>
+				<br><br>
+                <em>All product names, trademarks, and registered trademarks mentioned (including Microsoft®, Microsoft Word®, Mozilla Firefox®, LibreOffice®, Google Chrome®, and Microsoft Edge®) are the property of their respective owners and are used for identification purposes only.</em>
+            </p>
+
+            <div
+                style="background: #FFFFCC; border: 2px solid #FFD700; padding: 10px; margin: 15px 0; border-radius: 2px;">
+                <p style="margin: 0; font-weight: bold; color: #8B4513;">⚠️ Important Disclaimer:</p>
+                <p style="margin: 5px 0 0 0;">No automated tool is a substitute for human review. Always review results
+                    carefully and use your best judgment before sharing any text.</p>
+            </div>
+
+            <p style="margin-top: 15px; color: #0A246A;">&nbsp;&nbsp;<strong>Remember:</strong> This tool works offline
+                so your text never leaves your computer!</p>
+        </div>
+        <div class="dialog-buttons">
+            <button class="button" onclick="close_help()">OK, Got It!</button>
+        </div>
+    </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+
+
+
+    <script>
+        // Network security wrapper - must be first
+        (function () {
+            'use strict';
+
+            // Disable all network capabilities
+            const networkAPIs = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'sendBeacon'];
+
+            networkAPIs.forEach(api => {
+                if (window[api]) {
+                    window[api] = function () {
+                        console.warn(`Network API ${api} has been disabled for security`);
+                        return null;
+                    };
+                }
+            });
+
+            // Prevent navigation - but allow for PDF export
+            const originalWindowOpen = window.open;
+            window.open = function (url, target, features) {
+                // Allow opening blank windows for PDF export
+                if (url === '' && target === '_blank') {
+                    return originalWindowOpen.call(window, url, target, features);
+                }
+                console.warn('window.open blocked for security');
+                return false;
+            };
+
+            // Freeze location object - with try/catch for Firefox compatibility
+            try {
+                if (Object.freeze && window.location) {
+                    Object.freeze(window.location);
+                }
+            } catch (e) {
+                // Firefox security restriction prevents location freezing - expected behavior
+                // Continue execution without error logging
+            }
+        })();
+
+        'use strict';
+
+        const state = {
+            detections: [],
+            excluded_indices: new Set(),
+            sanitized_text: '',
+            processing: false,
+            auto_clear_timer: null,
+            auto_clear_seconds: 300,
+            backup_clear_timer: null,
+            // Performance settings
+            chunk_size: 25000,
+            processing_delay: 50,
+            idle_callback_id: null,
+            total_chunks: 0,
+            current_chunk: 0,
+            max_display_detections: 5000,  // Reasonable limit for laptop display performance
+            // BlurSession.com security
+            blur_active: false
+        };
+
+        // BlurSession.com Security Feature
+        const blurSecurity = {
+            inactivityTimer: null,
+            inactivityDelay: 45000, // 45 seconds
+            lastActivity: Date.now(),
+
+            activate: function () {
+                if (state.blur_active) return;
+                state.blur_active = true;
+                document.body.classList.add('blur-active');
+            },
+
+            deactivate: function () {
+                if (!state.blur_active) return;
+                state.blur_active = false;
+                document.body.classList.remove('blur-active');
+                // Reset activity tracking when blur is removed
+                this.resetInactivityTimer();
+            },
+
+            handleActivity: function () {
+                this.lastActivity = Date.now();
+
+                // If BlurSession.com blur is active, deactivate it
+                if (state.blur_active) {
+                    this.deactivate();
+                }
+
+                // Reset the inactivity timer
+                this.resetInactivityTimer();
+            },
+
+            resetInactivityTimer: function () {
+                // Clear existing timer
+                if (this.inactivityTimer) {
+                    clearTimeout(this.inactivityTimer);
+                }
+
+                // Only set timer if detections exist (privacy mode is active)
+                if (state.detections.length > 0) {
+                    this.inactivityTimer = setTimeout(() => {
+                        this.activate();
+                    }, this.inactivityDelay);
+                }
+            },
+
+            startMonitoring: function () {
+                // Start the inactivity timer
+                this.resetInactivityTimer();
+            },
+
+            stopMonitoring: function () {
+                if (this.inactivityTimer) {
+                    clearTimeout(this.inactivityTimer);
+                    this.inactivityTimer = null;
+                }
+                this.deactivate();
+            },
+
+            setupListeners: function () {
+                // Events that indicate user activity
+                const activityEvents = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'touchend', 'scroll'];
+
+                activityEvents.forEach(event => {
+                    document.addEventListener(event, () => {
+                        this.handleActivity();
+                    }, { passive: true });
+                });
+
+                // Click on overlay to remove BlurSession.com blur
+                const overlay = document.getElementById('blur-overlay');
+                if (overlay) {
+                    overlay.addEventListener('click', () => this.deactivate());
+                }
+            }
+        };
+
+
+        // Pattern Processor - Optimized for chunks
+        const patternProcessor = {
+            // Process a chunk of text with patterns
+            processChunk(chunkData) {
+                const detections = [];
+                const { text, start_offset, patterns } = chunkData;
+
+                // Process each pattern type
+                Object.entries(patterns).forEach(([key, config]) => {
+                    config.patterns.forEach(pattern => {
+                        // Reset pattern
+                        pattern.lastIndex = 0;
+
+                        let match;
+                        let count = 0;
+                        const maxPerPattern = 100; // Limit per pattern to prevent overflow
+
+                        while ((match = pattern.exec(text)) !== null && count < maxPerPattern) {
+                            detections.push({
+                                type: config.type,
+                                category: config.category,
+                                text: match[0],
+                                start: start_offset + match.index,
+                                end: start_offset + match.index + match[0].length,
+                                replacement: config.replacement,
+                                pattern_key: key
+                            });
+                            count++;
+                        }
+                    });
+                });
+
+                return detections;
+            },
+
+            // Efficient pattern matching with preliminary text scanning
+            quickMatch(text, patterns) {
+                const results = [];
+                const textLower = text.toLowerCase();
+
+                // Quick scan for pattern indicators
+                const indicators = {
+                    ssn: /\d{3}[-.\s]?\d{2}[-.\s]?\d{4}/,
+                    email: /@[a-z0-9.-]+\.[a-z]{2,}/i,
+                    phone: /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/,
+                    credit_card: /\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}/
+                };
+
+                // Only run expensive patterns if indicators are found
+                Object.entries(indicators).forEach(([type, indicator]) => {
+                    if (indicator.test(text)) {
+                        results.push(type);
+                    }
+                });
+
+                return results;
+            }
+        };
+
+        const securityManager = {
+            sensitiveDataTimeout: 300000, // 5 minutes
+
+            clearSensitiveData: function (data) {
+                if (typeof data === 'string') {
+                    data = data.replace(/./g, '\u0000');
+                } else if (Array.isArray(data)) {
+                    data.forEach((item, i) => { data[i] = null; });
+                    data.length = 0;
+                } else if (typeof data === 'object' && data !== null) {
+                    Object.keys(data).forEach(key => {
+                        data[key] = null;
+                        delete data[key];
+                    });
+                }
+                return null;
+            },
+
+            scheduleClear: function () {
+                setTimeout(() => {
+                    if (state.detections && state.detections.length > 0) {
+                        state.detections.forEach(detection => {
+                            detection.text = '[CLEARED FOR SECURITY]';
+                        });
+
+                        const outputArea = document.getElementById('outputText');
+                        if (outputArea && outputArea.innerHTML.indexOf('security cleared') === -1) {
+                            outputArea.innerHTML += '<br><br><em style="color: #666;">Note: Detection data cleared from memory for security</em>';
+                        }
+                    }
+                }, this.sensitiveDataTimeout);
+            }
+        };
+
+        // ===================================================================
+        // PRIVACY DATA DETECTION PATTERNS
+        // Organized by business categories with regular expression patterns
+        // ===================================================================
+
+        const detection_patterns = {
+
+            // ===================================================================
+            // GENERAL BUSINESS CATEGORY
+            // Common business data: Names, DOB, Addresses, Phone, Email
+            // ===================================================================
+
+            // Social Security Numbers - Enhanced patterns
+            ssn: {
+                patterns: [
+                    // Standard XXX-XX-XXXX format
+                    /\b\d{3}[-.\s]\d{2}[-.\s]\d{4}\b/g,
+                    // 9-digit SSN excluding common routing numbers
+                    /\b(?!021000021|111111111|222222222|123456789)\d{9}\b/g,
+                    // With labels
+                    /\b(?:SSN|Social\s*Security|Soc\s*Sec)[\s:#-]*\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b/gi,
+                    // Parenthetical format
+                    /\(SSN:\s*\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\)/gi,
+                    // With dashes and spaces variations
+                    /\bSSN[\s:#]*\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b/gi
+                ],
+                category: 'general_business',
+                type: 'SSN',
+                replacement: '[SSN-REDACTED]'
+            },
+
+            // Date of Birth - Comprehensive patterns
+            dob: {
+                patterns: [
+                    // MM/DD/YYYY and variations with labels
+                    /\b(?:DOB|D\.O\.B\.|Date\s*of\s*Birth|Birth\s*Date|Born|Birthday)[\s:]*(\d{1,2}[-\/\s]\d{1,2}[-\/\s]\d{2,4})\b/gi,
+                    // YYYY-MM-DD format with labels
+                    /\b(?:DOB|D\.O\.B\.|Date\s*of\s*Birth|Birth\s*Date|Born|Birthday)[\s:]*(\d{4}[-\/\s]\d{1,2}[-\/\s]\d{1,2})\b/gi,
+                    // Month name format standalone: March 14, 1988
+                    /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/gi,
+                    // Month names with labels (DOB: March 14, 1988)
+                    /\b(?:DOB|Date\s*of\s*Birth)[\s:]*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/gi,
+                    // Birthdate context with complete phrase matching
+                    /\b(?:my\s+)?(?:birthdate|birth\s*date)\s+is\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/gi,
+                    // Birth date context with date format matching
+                    /\b(?:born)\s+(\d{1,2}\/\d{1,2}\/\d{4})\b/gi,
+                    // Parenthetical format
+                    /\(DOB:\s*\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}\)/gi,
+                    // Standalone dates that look like DOB (conservative)
+                    /\b(?:0?[1-9]|1[0-2])[-\/](0?[1-9]|[12]\d|3[01])[-\/](19|20)\d{2}\b/g
+                ],
+                category: 'general_business',
+                type: 'Date of Birth',
+                replacement: '[DOB-REDACTED]'
+            },
+
+            // Email addresses - Enhanced
+            email: {
+                patterns: [
+                    // Standard email format
+                    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+                    // With labels
+                    /\b(?:Email|E-mail|Mail)[\s:#-]*([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})\b/gi,
+                    // Corporate email patterns
+                    /\b[A-Za-z0-9._%+-]+@(?:company|corp|enterprise|business|org)\.[A-Z|a-z]{2,}\b/gi
+                ],
+                category: 'general_business',
+                type: 'Email',
+                replacement: '[EMAIL-REDACTED]'
+            },
+
+            // Phone numbers - Comprehensive US/International
+            phone: {
+                patterns: [
+                    // US format with country code
+                    /\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
+                    // Standard formats
+                    /\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/g,
+                    /\b\(\d{3}\)\s*\d{3}[-.\s]?\d{4}\b/g,
+                    // French mobile format - spacing fixed
+                    /\b\+33\s\d\s\d{2}\s\d{2}\s\d{2}\s\d{2}\b/g,
+                    // International format supporting multiple country codes
+                    /(?:^|\s)\+\d{1,3}[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}\b/g,
+                    // With labels
+                    /\b(?:Phone|Tel|Mobile|Cell|Fax|Work|Home)[\s:#-]*(\+?[\d\s\-\(\)]{10,18})\b/gi,
+                    // Extension format
+                    /\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\s*(?:ext|x|extension)[\s.]*\d{1,5}\b/gi
+                ],
+                category: 'general_business',
+                type: 'Phone',
+                replacement: '[PHONE-REDACTED]'
+            },
+
+            // Street addresses - Enhanced
+            address: {
+                patterns: [
+                    // Standard street address
+                    /\b\d+\s+(?:[NSEW]\.?\s+)?(?:[A-Z][a-z]+\s+){1,3}(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Boulevard|Blvd\.?|Lane|Ln\.?|Drive|Dr\.?|Court|Ct\.?|Circle|Cir\.?|Plaza|Pl\.?|Way|Parkway|Pkwy\.?|Place|Terrace|Ter\.?)\b/gi,
+                    // Apartment/Unit numbers with street addresses
+                    /\b\d+\s+[A-Z][a-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Lane|Ln|Drive|Dr)\s+(?:Apt|Apartment|Unit|Suite|Ste)\.?\s*[A-Z0-9]+\b/gi,
+                    // Addresses with unit letters like "92B Creekbend Lane"
+                    /\b\d+[A-Z]?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Lane|Ln|Street|St|Avenue|Ave|Road|Rd|Drive|Dr)\s+(?:Apt|Apartment|Unit|#)\.?\s*#?\d+[A-Z]?\b/gi,
+                    // Full address patterns (US format)
+                    /\b\d+\s+[A-Z][a-z\s]+(?:Street|Ave|Road|Dr|Ln|Ct|Way|Blvd)[,\s]+[A-Z][a-z\s]+,\s*[A-Z]{2}\s*\d{5}\b/gi,
+                    // International address patterns (European style)
+                    /\b#?\d+[-A-Z]?\s+[A-Z][a-z]+(?:\s+[a-z]+)*,\s+[A-Z][a-z]+,\s+[A-Z][a-z]+\s+\d{5}\b/gi,
+                    // French-style addresses with articles (des, du, de, etc.)
+                    /\b#\d+[-A-Z]\s+Rue\s+(?:des\s+|du\s+|de\s+|d'\s*)?[A-Z][a-zA-Z\s]+,\s+[A-Z][a-z]+,\s+[A-Z][a-z]+\s+\d{5}\b/gi,
+                    // General international address (hash-number format)
+                    /\b#\d+[-A-Z]\s+[A-Z][a-z]+\s+[a-z]+\s+[A-Z][a-z]+,\s+[A-Z][a-z]+,\s+[A-Z][a-z]+\s+\d{5}\b/gi,
+                    // Rural routes (comprehensive)
+                    /\b(?:Rural\s+Route|RR|R\.R\.)\s*\d+,?\s*Box\s*\d+[A-Z]?\b/gi,
+                    // PO Box
+                    /\b(?:P\.?O\.?\s*Box|Post\s*Office\s*Box)\s*\d+\b/gi,
+                    // ZIP codes - more specific to avoid medical code conflicts
+                    /\b(?:,\s*[A-Z]{2}\s+)(\d{5}(?:-\d{4})?)\b/g,
+                    // ZIP with labels
+                    /\b(?:ZIP|Zip\s*Code|Postal\s*Code)[\s:#-]*(\d{5}(?:-\d{4})?)\b/gi
+                ],
+                category: 'general_business',
+                type: 'Address',
+                replacement: '[ADDRESS-REDACTED]'
+            },
+
+            // Names - Personal names (conservative patterns)
+            names: {
+                patterns: [
+                    // Full names with titles
+                    /\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr)\.?\s+[A-Z][a-zA-Z]+\s+[A-Z][a-zA-Z]+\b/g,
+                    // First Middle Initial (with period) Last - HANDLES DESILVA
+                    /\b[A-Z][a-z]+\s+[A-Z]\.\s*[A-Z][a-zA-Z]+\b/g,
+                    // First Middle Initial (no period) Last
+                    /\b[A-Z][a-z]+\s+[A-Z]\s+[A-Z][a-zA-Z]+\b/g,
+                    // First Middle Last format (full middle name)
+                    /\b[A-Z][a-z]+\s+[A-Z][a-z]+\s+[A-Z][a-zA-Z]+\b/g,
+                    // First Last format - HANDLES DESILVA
+                    /\b[A-Z][a-z]+\s+[A-Z][a-zA-Z]+\b/g,
+                    // First Last format (common names with context)
+                    /\b(?:my name is|I am|I'm|called|named)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)\b/gi,
+                    // Name in context patterns
+                    /\b(?:brother|sister|uncle|aunt|father|mother|dad|mom)\s+([A-Z][a-z]+\s+[A-Z]\.?\s*[A-Z][a-z]+)\b/gi,
+                    // Employee name patterns
+                    /\b(?:Employee|Staff|Worker|Name)[\s:]+([A-Z][a-z]+\s+[A-Z][a-z]+)\b/gi,
+                    // Name fields
+                    /\b(?:First\s*Name|Last\s*Name|Full\s*Name)[\s:]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/gi
+                ],
+                category: 'general_business',
+                type: 'Name',
+                replacement: '[NAME-REDACTED]'
+            },
+
+            // Company names
+            company_name: {
+                patterns: [
+                    // Company with context
+                    /\b(?:Company|Employer|Organization)[\s:]+([A-Z][a-zA-Z\s&]+(?:Inc|LLC|Corp|Ltd|Co|Group|Partners))\b/gi,
+                    // Standalone company names with suffixes
+                    /\b[A-Z][a-zA-Z\s&]+\s+(?:Incorporated|Corporation|Limited|Company)\b/g
+                ],
+                category: 'general_business',
+                type: 'Company Name',
+                replacement: '[COMPANY-REDACTED]'
+            },
+
+            // ===================================================================
+            // FINANCE CATEGORY
+            // Credit cards, bank accounts, financial identifiers
+            // ===================================================================
+
+            // Credit cards - All major types
+            credit_card: {
+                patterns: [
+                    // Visa (4xxx)
+                    /\b4[0-9]{12}(?:[0-9]{3})?\b/g,
+                    // MasterCard (5xxx)
+                    /\b5[1-5][0-9]{14}\b/g,
+                    // American Express (3xxx)
+                    /\b3[47][0-9]{13}\b/g,
+                    // Discover (6xxx)
+                    /\b6(?:011|5[0-9]{2})[0-9]{12}\b/g,
+                    // With separators
+                    /\b4\d{3}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g,
+                    /\b5[1-5]\d{2}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g,
+                    // With labels
+                    /\b(?:Card|CC|Credit|Visa|MasterCard|Amex)[\s:#-]*(\d{13,19})\b/gi,
+                    // CVV codes
+                    /\b(?:CVV|CVC|Security\s*Code)[\s:#-]*(\d{3,4})\b/gi,
+                    // Card expiration dates
+                    /\b(?:Exp|Expires|Expiry)[\s:]*(\d{2}\/\d{2,4})\b/gi,
+                    /\b(\d{2}\/\d{2})\s*(?:exp|expires)\b/gi
+                ],
+                category: 'finance',
+                type: 'Credit Card',
+                replacement: '[CARD-REDACTED]'
+            },
+
+            // Bank account numbers
+            bank_account: {
+                patterns: [
+                    // Account numbers with labels
+                    /\b(?:Account|Acct\.?|Checking|Savings|Bank\s*Account)[\s#:No\.]*(\d{8,17})\b/gi,
+                    // Routing numbers with labels
+                    /\b(?:Routing|ABA|RTN)[\s#:No\.]*(\d{9})\b/gi,
+                    // Account numbers with dashes and letters
+                    /\baccount\s*#[\s]*([0-9]{3}-[0-9]{5}-[A-Z])\b/gi,
+                    // Client/Customer IDs
+                    /\b(?:Client\s*ID|Customer\s*ID|CUST)[\s:#-]*([A-Z]{4}-\d{6}-[A-Z]{2})\b/gi,
+                    // Standalone account numbers (12+ digits)
+                    /\b\d{12,17}\b/g,
+                    // IBAN  
+                    /\bIBAN[\s:]?([A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}(?:[A-Z0-9]?){0,16})\b/gi,
+                    // SWIFT codes
+                    /\b[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/g,
+                    // Wire transfer codes
+                    /\b(?:Wire|Transfer)[\s:#-]*([A-Z0-9]{8,11})\b/gi,
+                    // PAN (Personal Account Number)
+                    /\b(?:PAN|Personal\s*Account)[\s:#-]*([A-Z]{5}\d{4}[A-Z])\b/gi,
+                    // Account Holder Name patterns
+                    /\b(?:Account\s*Holder|Beneficiary\s*Name)[\s:#-]*([A-Z][a-z]+\s+[A-Z][a-z]+)\b/gi,
+                    // Transaction IDs
+                    /\b(?:Transaction|Trans|Txn|Reference)[\s#:ID]*([A-Z0-9]{8,20})\b/gi,
+                    /\bTXN-\d{10,15}\b/g
+                ],
+                category: 'finance',
+                type: 'Bank Account',
+                replacement: '[ACCOUNT-REDACTED]'
+            },
+
+            // Investment Securities - CUSIP and financial instruments
+            investment_securities: {
+                patterns: [
+                    // CUSIP (Committee on Uniform Securities Identification Procedures)
+                    /\b(?:CUSIP|CUSIP\s*#)[\s:#-]*([A-Z0-9]{9})\b/gi,
+                    // Investment account codes
+                    /\b(?:advisor\s*code|portfolio\s*code)[\s:#-]*([A-Z]{2}\d{3})\b/gi,
+                    // Mutual fund tickers and codes
+                    /\b[A-Z]{5}[A-Z0-9]{4}\b/g
+                ],
+                category: 'finance',
+                type: 'Investment Security',
+                replacement: '[INVESTMENT-REDACTED]'
+            },
+
+            // Tax IDs
+            tax_id: {
+                patterns: [
+                    // Individual Taxpayer ID Number (ITIN)
+                    /\b9\d{2}[-.\s]?\d{2}[-.\s]?\d{4}\b/g,
+                    /\bITIN[\s:#-]*9\d{2}[-.\s]?\d{2}[-.\s]?\d{4}\b/gi,
+                    // Employer Identification Number (EIN)
+                    /\b\d{2}[-.\s]?\d{7}\b/g,
+                    /\b(?:EIN|Tax\s*ID|Employer\s*ID)[\s:#-]*\d{2}[-.\s]?\d{7}\b/gi,
+                    // State tax IDs
+                    /\b(?:State\s*Tax\s*ID)[\s:#-]*([A-Z0-9]{6,12})\b/gi
+                ],
+                category: 'finance',
+                type: 'Tax ID',
+                replacement: '[TAX-ID-REDACTED]'
+            },
+
+            // ===================================================================
+            // GOVERNMENT CATEGORY
+            // Government IDs, passport, visa, etc.
+            // ===================================================================
+
+            // Driver's License patterns for all US states
+            drivers_license: {
+                patterns: [
+                    // Standard formats with descriptive labels
+                    /\b(?:DL|Driver'?s?\s*License|License\s*#|DLN|DL\s*#)[\s:#-]*([A-Z0-9\-]{8,20})\b/gi,
+                    /\b(?:CDL|Commercial\s*License)[\s:#-]*([A-Z0-9]{8,15})\b/gi,
+
+                    // State-specific patterns with contextual validation
+
+                    // Washington state format (WA: DXXXX-XXXXX-XX)
+                    /\b(?:WA:?\s*)?D\d{4}-\d{5}-\d{2}\b/gi,
+
+                    // Utah format specifically
+                    /\b[A-Z]{2}-\d{10}-[A-Z]+\b/g,
+
+                    // California: 1 Alpha + 7 Numeric (with context)
+                    /\b(?:CA:?\s*|California\s*)?[A-Z]\d{7}\b/g,
+
+                    // Florida: 1 Alpha + 12 Numeric (with context)
+                    /\b(?:FL:?\s*|Florida\s*)?[A-Z]\d{12}\b/g,
+
+                    // New York: Complex formats (with context)
+                    /\b(?:NY:?\s*|New\s*York\s*)?[A-Z]\d{18}\b/g,
+
+                    // Generic state patterns (more specific)
+                    /\b[A-Z]{2}[-]?[A-Z0-9]{8,15}\b/g,
+                    /\b[A-Z]{2}-[A-Z]?\d{9,15}-?[A-Z]*\b/g,
+
+                    // Include essential state patterns while minimizing false positive matches
+                    // Exclude overly broad numeric patterns to prevent detection conflicts
+                ],
+                category: 'government',
+                type: 'Driver License',
+                replacement: '[LICENSE-REDACTED]'
+            },
+
+            // Passport
+            passport: {
+                patterns: [
+                    // US Passport
+                    /\b(?:Passport|Passport\s*#|Passport\s*Number|PP\s*#)[\s:#-]*([A-Z][0-9]{8}|[0-9]{9})\b/gi,
+                    // International passport patterns with letters and numbers
+                    /\b[A-Z]{2}\d{6,8}[A-Z]?\b/g,
+                    // Common international formats
+                    /\b[A-Z]\d{7,8}[A-Z]\b/g,
+                    /\b[A-Z]{2}\d{7}-[A-Z]\b/g,
+                    // Passport book/card
+                    /\b(?:Passport\s*Book|Passport\s*Card)[\s:#-]*([A-Z0-9]{6,12})\b/gi,
+                    // Global Entry / Known Traveler
+                    /\b(?:Global\s*Entry|Known\s*Traveler|KTN|PASSID)[\s:#-]*(\d{8,9})\b/gi
+                ],
+                category: 'government',
+                type: 'Passport',
+                replacement: '[PASSPORT-REDACTED]'
+            },
+
+            // Military ID
+            military_id: {
+                patterns: [
+                    /\b(?:Military\s*ID|DoD\s*ID|Service\s*#)[\s:#-]*(\d{10})\b/gi,
+                    /\b(?:DODID|EDIPI)[\s:#-]*(\d{10})\b/gi
+                ],
+                category: 'government',
+                type: 'Military ID',
+                replacement: '[MILITARY-ID-REDACTED]'
+            },
+
+            // National ID
+            national_id: {
+                patterns: [
+                    /\b(?:National\s*ID|Citizen\s*ID)[\s:#-]*([A-Z0-9]{8,15})\b/gi,
+                    /\b(?:Voter\s*ID|Election\s*ID)[\s:#-]*([A-Z0-9]{6,12})\b/gi
+                ],
+                category: 'government',
+                type: 'National ID',
+                replacement: '[NATIONAL-ID-REDACTED]'
+            },
+
+            // Visa numbers
+            visa: {
+                patterns: [
+                    /\b(?:Visa|Visa\s*Number|Immigration\s*#)[\s:#-]*([A-Z0-9]{8,13})\b/gi,
+                    // Green card
+                    /\b(?:Green\s*Card|Permanent\s*Resident)[\s:#-]*([A-Z0-9]{13})\b/gi,
+                    // Work authorization
+                    /\b(?:Work\s*Authorization|EAD)[\s:#-]*([A-Z0-9]{9,13})\b/gi
+                ],
+                category: 'government',
+                type: 'Visa/Immigration',
+                replacement: '[VISA-REDACTED]'
+            },
+
+            // ===================================================================
+            // HEALTHCARE CATEGORY
+            // Medical records, insurance, patient data
+            // ===================================================================
+
+            // Medical Record Numbers - Enhanced for hospital systems and patient identifiers
+            medical_record: {
+                patterns: [
+                    /\b(?:MRN|Medical\s*Record|Patient\s*ID|Chart\s*#)[\s:#-]*([A-Z0-9\-]{6,15})\b/gi,
+                    // Hospital format: PID-LZ110-0098437
+                    /\bPID-[A-Z0-9]+-\d{7,10}\b/g,
+                    // Hospital patient numbers
+                    /\b(?:Patient|Hospital)\s*#[\s:]*([A-Z0-9]{6,10})\b/gi,
+                    // Medical IDs and health records
+                    /\b(?:Medical\s*ID|Health\s*ID)[\s:#-]*([A-Z0-9]{8,15})\b/gi,
+                    // Encrypted patient identifiers
+                    /\b(?:encrypted\s*patient\s*ID|patient\s*identifier)[\s:#-]*\(?([A-Z0-9\-]{10,20})\)?/gi,
+                    // NPI (National Provider Identifier) numbers
+                    /\b(?:NPI|National\s*Provider\s*ID)[\s:#-]*(\d{10})\b/gi,
+                    // Patient ID with dashes (PAT-XXXXX-XXX format)
+                    /\bPAT-\d+-[A-Z]+\b/g,
+                    // Patient ID with initials format
+                    /\b(?:Patient\s*ID)[\s:#-]*([A-Z]\.[A-Z]\.[A-Z]\.?\s*[–-]\s*\d{8})\b/gi,
+                    // NPI in parentheses format
+                    /\(NPI[\s:#-]*(\d{10})\)/gi,
+                    // Prescription ID
+                    /\b(?:Rx|Prescription\s*ID|Script\s*#)[\s:#-]*([A-Z0-9]{6,12})\b/gi,
+                    // Lab Result ID
+                    /\b(?:Lab\s*ID|Result\s*ID|Specimen\s*#)[\s:#-]*([A-Z0-9]{8,15})\b/gi
+                ],
+                category: 'healthcare',
+                type: 'Medical Record',
+                replacement: '[MEDICAL-RECORD-REDACTED]'
+            },
+
+            // Medical Codes - CPT, ICD, procedure codes
+            medical_codes: {
+                patterns: [
+                    // CPT codes (Current Procedural Terminology)
+                    /\b(?:CPT|CPT\s*Code)[\s:#-]*(\d{5})\b/gi,
+                    // ICD-10 codes
+                    /\b(?:ICD-10|ICD)[\s:#-]*([A-Z]\d{2}(?:\.\d{1,2})?)\b/gi,
+                    // Standalone CPT format
+                    /\bCPT\s+(\d{5})\b/gi,
+                    // Medical procedure codes in context
+                    /\b(?:Procedure\s*Code|Diagnosis\s*Code)[\s:#-]*([A-Z]?\d{3,5}(?:\.\d{1,2})?)\b/gi
+                ],
+                category: 'healthcare',
+                type: 'Medical Code',
+                replacement: '[MEDICAL-CODE-REDACTED]'
+            },
+
+            // Health Insurance
+            health_insurance: {
+                patterns: [
+                    // Insurance member IDs
+                    /\b(?:Member\s*ID|Insurance\s*ID|Policy\s*#|Subscriber\s*ID)[\s:#-]*([A-Z0-9]{6,15})\b/gi,
+                    // Group numbers
+                    /\b(?:Group\s*#?|Group\s*Number)[\s:#-]*([A-Z0-9]{4,12})\b/gi,
+                    // Standalone Group format (Group 87211)
+                    /\bGroup\s+(\d{5,6})\b/gi,
+                    // Group numbers with dashes
+                    /\b(?:Group\s*Number)[\s:#-]*(\d{6}-\d{2})\b/gi,
+                    // Family plan identification
+                    /\b(?:Family\s*Plan\s*ID|Plan\s*ID)\s*#?(FML-[A-Z]{2}-[A-Z0-9]{6})\b/gi,
+                    // Medicare/Medicaid
+                    /\b(?:Medicare|Medicaid)[\s:#-]*([A-Z0-9]{9,12})\b/gi,
+                    // Medicare Beneficiary Identifier (MBI) format
+                    /\b[1-9][A-Z]{2}\d-[A-Z]{2}\d-[A-Z]{2}\d{2}\b/g,
+                    // Health plan IDs
+                    /\b(?:Plan\s*ID|Health\s*Plan)[\s:#-]*([A-Z0-9]{6,12})\b/gi,
+                    // Health Plan ID specific format (HPID: 9529341290US)
+                    /\b(?:HPID|Health\s*Plan\s*ID)[\s:#-]*([A-Z0-9]{10,15})\b/gi
+                ],
+                category: 'healthcare',
+                type: 'Health Insurance',
+                replacement: '[HEALTH-INSURANCE-REDACTED]'
+            },
+
+            // Medical Diagnoses
+            medical_conditions: {
+                patterns: [
+                    // Autism spectrum conditions
+                    /\b(?:autism|autistic|ASD|autism\s+spectrum\s+disorder|Asperger'?s?)\b/gi,
+                    // Developmental disabilities
+                    /\b(?:ADHD|ADD|attention\s+deficit|dyslexia|dyspraxia|dyscalculia)\b/gi,
+                    // Mental health conditions
+                    /\b(?:depression|anxiety|bipolar|PTSD|post-traumatic\s+stress|schizophrenia|OCD|obsessive-compulsive)\b/gi,
+                    // Physical disabilities
+                    /\b(?:wheelchair|paralyzed|paralysis|amputee|amputation|blind|blindness|deaf|deafness|hearing\s+impaired)\b/gi,
+                    // Chronic conditions
+                    /\b(?:diabetes|diabetic|epilepsy|epileptic|multiple\s+sclerosis|MS|cerebral\s+palsy|CP)\b/gi,
+                    // Learning disabilities
+                    /\b(?:learning\s+disability|intellectual\s+disability|cognitive\s+impairment|special\s+needs)\b/gi,
+                    // Diagnosis context
+                    /\b(?:diagnosed\s+with|diagnosis\s+of|suffering\s+from|living\s+with|treatment\s+for)\s+([A-Za-z\s]+)\b/gi,
+                    // Disability status
+                    /\b(?:disabled|disability|disabilities|handicapped|impairment|impaired)\b/gi,
+                    // Medical conditions with context
+                    /\b(?:my|his|her|their)\s+(?:autism|ADHD|depression|anxiety|disability|condition)\b/gi
+                ],
+                category: 'healthcare',
+                type: 'Medical Condition',
+                replacement: '[MEDICAL-CONDITION-REDACTED]'
+            },
+
+            // ===================================================================
+            // HUMAN RESOURCES CATEGORY
+            // Employee data, payroll, benefits
+            // ===================================================================
+
+
+            // Employee IDs - Enhanced detection for corporate formats, payroll, and badge numbers
+            employee_id: {
+                patterns: [
+                    /\b(?:Employee\s*ID|Emp\s*ID|Employee\s*#|Staff\s*ID|Badge\s*#|Worker\s*ID)[\s:#-]*([A-Z0-9_]{4,15})\b/gi,
+                    /\b(?:EID|EMP)[\s:#-]*([A-Z0-9_]{4,15})\b/gi,
+                    // Corporate format: EMP_9083_AZ456
+                    /\bEMP_\d{4}_[A-Z0-9]{5,6}\b/g,
+                    // Corporate ID patterns
+                    /\b(?:Corporate\s*ID|Corp\s*ID)[\s:#-]*([A-Z0-9_]{6,15})\b/gi,
+                    // Payroll numbers
+                    /\b(?:Payroll\s*#|Pay\s*ID)[\s:#-]*([A-Z0-9]{4,10})\b/gi,
+                    // Time clock IDs
+                    /\b(?:Clock\s*#|Time\s*ID)[\s:#-]*([A-Z0-9]{3,8})\b/gi,
+                    // Employee ID with descriptive label
+                    /\b(?:Employee\s*ID|Employee\s*#)[\s:#-]*(\d{6})\b/gi,
+                    // EE# format (common HR abbreviation)
+                    /\bEE#(\d{5,7})\b/gi,
+                    // Standalone numeric employee IDs (6+ digits)
+                    /\b(?:Employee|EE|Staff)\s+(\d{6,8})\b/gi
+                ],
+                category: 'human_resources',
+                type: 'Employee ID',
+                replacement: '[EMPLOYEE-ID-REDACTED]'
+            },
+
+            // Dependent identification numbers
+            dependent_id: {
+                patterns: [
+                    // Dependent ID format
+                    /\b(?:Dependent\s*ID|Dependent\s*#)[\s:#-]*(DEP-\d{7})\b/gi,
+                    // Child/family member IDs
+                    /\b(?:Child\s*ID|Family\s*Member\s*ID)[\s:#-]*([A-Z]{3}-\d{7})\b/gi
+                ],
+                category: 'human_resources',
+                type: 'Dependent ID',
+                replacement: '[DEPENDENT-ID-REDACTED]'
+            },
+
+            // Salary/Compensation
+            salary: {
+                patterns: [
+                    // Salary amounts
+                    /\b(?:Salary|Annual\s*Pay|Hourly\s*Rate|Wage)[\s:]*\$[\d,]+(?:\.\d{2})?\b/gi,
+                    // Compensation
+                    /\b(?:Compensation|Pay\s*Rate|Base\s*Pay)[\s:]*\$[\d,]+(?:\.\d{2})?\b/gi,
+                    // Benefits amounts
+                    /\b(?:Benefits|Bonus|Commission)[\s:]*\$[\d,]+(?:\.\d{2})?\b/gi,
+                    // W-2 income specifically
+                    /\bW-2\s+Box\s+\d+\s+income\s+of\s+\$[\d,]+\.\d{2}\b/gi,
+                    // Income with "of" context
+                    /\b(?:income|salary|earnings|pay)\s+of\s+\$[\d,]+\.\d{2}\b/gi,
+                    // YTD earnings
+                    /\$[\d,]+\.\d{2}\s+YTD\b/gi,
+                    // Benefit ID
+                    /\b(?:Benefit\s*ID|Benefits\s*#)[\s:#-]*([A-Z0-9]{6,12})\b/gi
+                ],
+                category: 'human_resources',
+                type: 'Compensation',
+                replacement: '[COMPENSATION-REDACTED]'
+            },
+
+            // ===================================================================
+            // INSURANCE CATEGORY
+            // Policy numbers, claims, coverage
+            // ===================================================================
+
+            // Insurance policies - Enhanced for various carriers and policy formats
+            insurance_policy: {
+                patterns: [
+                    // Complex policy format: QMF-0091-2293-USAA
+                    /\b[A-Z]{3}-\d{4}-\d{4}-[A-Z]{2,4}\b/g,
+                    // Policy numbers with labels
+                    /\b(?:Policy|Policy\s*#|Policy\s*Number)[\s:#-]*([A-Z0-9\-]{6,20})\b/gi,
+                    // Claim numbers
+                    /\b(?:Claim|Claim\s*#|Claim\s*Number)[\s:#-]*([A-Z0-9]{6,12})\b/gi,
+                    // Auto insurance policies
+                    /\b(?:Auto\s*Policy|Car\s*Insurance)[\s:#-]*([A-Z0-9]{8,15})\b/gi,
+                    // Home insurance policies
+                    /\b(?:Home\s*Policy|Property\s*Insurance)[\s:#-]*([A-Z0-9]{8,15})\b/gi,
+                    // Insurance tied to addresses
+                    /\b(?:insurance\s*policy\s*tied\s*to|policy.*address)[\s,]*#([A-Z0-9\-]{8,20})\b/gi,
+                    // Subscriber ID
+                    /\b(?:Subscriber\s*ID|Member\s*#)[\s:#-]*([A-Z0-9]{8,15})\b/gi,
+                    // Adjuster ID
+                    /\b(?:Adjuster\s*ID|Adjuster\s*#)[\s:#-]*([A-Z0-9]{6,10})\b/gi,
+                    // Effective/Expiration dates
+                    /\b(?:Effective\s*Date|Expiration\s*Date)[\s:#-]*(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})\b/gi
+                ],
+                category: 'insurance',
+                type: 'Insurance Policy',
+                replacement: '[INSURANCE-POLICY-REDACTED]'
+            },
+
+            // ===================================================================
+            // LEGAL CATEGORY
+            // Case numbers, legal IDs, court documents
+            // ===================================================================
+
+            // Legal case numbers
+            legal_case: {
+                patterns: [
+                    // Case numbers
+                    /\b(?:Case|Case\s*#|Docket|Matter)[\s:#-]*([A-Z0-9]{4,15})\b/gi,
+                    // Court case formats - enhanced for all variations
+                    /\b(?:Case\s*#?:?\s*)?(\d{2}[A-Z]{2}-\d{4})\b/gi,
+                    /\b(?:Case\s*#?:?\s*)?(CV-\d{2}-\d{5}-[A-Z]{3})\b/gi,
+                    // Divorce/Family court cases (DV-XX-XXXXX)
+                    /\b(?:Case|Case\s*#|Docket)[\s:#-]*([A-Z]{2}-\d{2}-\d{5})\b/gi,
+                    // Legal document IDs
+                    /\b(?:Document|Doc\s*#|Filing)[\s:#-]*([A-Z0-9]{6,12})\b/gi,
+                    // Attorney bar numbers
+                    /\b(?:Bar\s*#|Attorney\s*#)[\s:#-]*([A-Z0-9]{4,10})\b/gi,
+                    // Notary identification numbers  
+                    /\b(?:Notary\s*ID|Notary\s*#)[\s:#-]*(\d{6})\b/gi,
+                    // Client identification numbers
+                    /\b(?:Client\s*ID|Client\s*#)[\s:#-]*([A-Z]{4}-\d{5})\b/gi,
+                    // Standalone client ID format
+                    /\bLGEN-\d{5}\b/g,
+                    // Professional registration numbers (Canada/International)
+                    /\b(?:Registration\s*#)[\s:#-]*([A-Z]{2}-[A-Z]{3}-\d{4})\b/gi,
+                    // FMLA case references
+                    /\b(?:Case\s*Ref|Case\s*Reference)[\s:#-]*(FMLA-\d{2}-[A-Z]{2}-[A-Z]{2})\b/gi,
+                    // HR case numbers
+                    /\b(?:Case\s*)?HR-\d{2}-\d{4}\b/gi,
+                    // Business entities (LLC, Trust, Corp)
+                    /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:LLC|Inc|Corp|Trust|LP|LLP)\b/g,
+                    // Trust names specifically
+                    /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Revocable\s+)?Trust\b/gi,
+                    // Legal case "vs" pattern
+                    /\b[A-Z][a-z]+\s+(?:v\.?|vs\.?|versus)\s+[A-Z][a-z]+\b/g,
+                    // Exhibit numbers
+                    /\b(?:Exhibit|Ex\.?)[\s:#-]*([A-Z0-9]{1,5})\b/gi
+                ],
+                category: 'legal',
+                type: 'Legal Case',
+                replacement: '[LEGAL-CASE-REDACTED]'
+            },
+
+            // ===================================================================
+            // MISCELLANEOUS CATEGORY
+            // Digital identifiers, technical data, other sensitive info
+            // ===================================================================
+
+            // IP Addresses
+            ip_address: {
+                patterns: [
+                    // IPv4
+                    /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+                    // IPv6
+                    /\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b/g,
+                    // With labels
+                    /\b(?:IP|IP\s*Address)[\s:#-]*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/gi
+                ],
+                category: 'miscellaneous',
+                type: 'IP Address',
+                replacement: '[IP-REDACTED]'
+            },
+
+            // MAC Addresses
+            mac_address: {
+                patterns: [
+                    /\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\b/g,
+                    /\b(?:MAC|MAC\s*Address)[\s:#-]*([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\b/gi
+                ],
+                category: 'miscellaneous',
+                type: 'MAC Address',
+                replacement: '[MAC-REDACTED]'
+            },
+
+            // Security tokens and authentication hashes
+            security_tokens: {
+                patterns: [
+                    // Auth token hashes (32+ hex characters)
+                    /\b(?:auth\s*token|token\s*hash|hash)[\s:is]*([a-f0-9]{32,64})\b/gi,
+                    // API keys and tokens
+                    /\b(?:API\s*key|access\s*token|secret\s*key)[\s:]*([A-Za-z0-9]{20,64})\b/gi,
+                    // Standalone hex hashes (32+ characters)
+                    /\b[a-f0-9]{32,64}\b/g,
+                    // Session IDs
+                    /\b(?:JSESSIONID|PHPSESSID|ASP\.NET_SessionId)[\s=:]*([A-Z0-9]{16,32})\b/gi,
+                    /\bsession[_-]?id[\s=:]*([a-zA-Z0-9]{16,40})\b/gi
+                ],
+                category: 'miscellaneous',
+                type: 'Security Token',
+                replacement: '[TOKEN-REDACTED]'
+            },
+
+            // Vehicle Identification
+            vin: {
+                patterns: [
+                    /\b[A-HJ-NPR-Z0-9]{17}\b/g,
+                    /\b(?:VIN|Vehicle\s*ID)[\s:#-]*([A-HJ-NPR-Z0-9]{17})\b/gi,
+                    // License plates
+                    /\b(?:License\s*Plate|Plate\s*#)[\s:#-]*([A-Z0-9]{2,8})\b/gi
+                ],
+                category: 'miscellaneous',
+                type: 'Vehicle ID',
+                replacement: '[VEHICLE-ID-REDACTED]'
+            },
+
+            // Usernames and handles - Social media, login names, handles
+            usernames: {
+                patterns: [
+                    // LinkedIn handles and social media usernames
+                    /\b(?:LinkedIn\s*handle|username|handle|login)[\s:is]*([a-z0-9_]{6,20})\b/gi,
+                    // VPN logins and admin accounts
+                    /\b(?:VPN\s*login|admin\s*login|user\s*login)[\s:is]*([a-z0-9_]{4,20})\b/gi,
+                    // Standalone usernames (conservative pattern)
+                    /\b[a-z]+_[a-z]+_[a-z0-9]+\d{2}\b/g,
+                    // Admin accounts
+                    /\b[a-z]+_admin\d{1,3}\b/g
+                ],
+                category: 'miscellaneous',
+                type: 'Username',
+                replacement: '[USERNAME-REDACTED]'
+            },
+
+            // Domain names and private domains
+            domains: {
+                patterns: [
+                    // Private domain patterns (includes hyphens and numbers)
+                    /\b@[a-z0-9\-]+\.[a-z]{2,4}\b/gi,
+                    // Family/corporate domains with context
+                    /\b(?:domain|masked\s*under)[\s:]*(@[a-z0-9\-]+\.[a-z]{2,4})\b/gi,
+                    // Network/family domains (word-word format)
+                    /\b@[a-z]+-[a-z]+\.[a-z]{2,4}\b/gi
+                ],
+                category: 'miscellaneous',
+                type: 'Domain',
+                replacement: '[DOMAIN-REDACTED]'
+            },
+
+            // File names - Documents, PDFs, images, spreadsheets
+            file_names: {
+                patterns: [
+                    // PDF files with complex naming
+                    /\b[A-Za-z0-9\-_]+(?:-[A-Za-z0-9]+)*\.(pdf|PDF)\b/g,
+                    // Document files
+                    /\b[A-Za-z0-9\-_]+(?:-[A-Za-z0-9]+)*\.(doc|docx|DOC|DOCX)\b/g,
+                    // Spreadsheet files
+                    /\b[A-Za-z0-9\-_]+(?:-[A-Za-z0-9]+)*\.(xls|xlsx|XLS|XLSX|csv|CSV)\b/g,
+                    // Image files
+                    /\b[A-Za-z0-9\-_]+(?:-[A-Za-z0-9]+)*\.(jpg|jpeg|png|gif|JPG|JPEG|PNG|GIF)\b/g,
+                    // Text files
+                    /\b[A-Za-z0-9\-_]+(?:-[A-Za-z0-9]+)*\.(txt|TXT)\b/g,
+                    // Archive files
+                    /\b[A-Za-z0-9\-_]+(?:-[A-Za-z0-9]+)*\.(zip|rar|7z|ZIP|RAR)\b/g,
+                    // Files with dates and special characters
+                    /\b[A-Za-z]+(?:-[A-Za-z0-9]+)*-\d{4}(?:-[A-Za-z0-9]+)*\.[a-zA-Z]{2,4}\b/g,
+                    // Generic file pattern (any extension)
+                    /\b[A-Za-z0-9\-_]+(?:-[A-Za-z0-9\-_]+)*\.[a-zA-Z]{2,4}\b/g
+                ],
+                category: 'miscellaneous',
+                type: 'File Name',
+                replacement: '[FILENAME-REDACTED]'
+            },
+
+            // Coordinates
+            coordinates: {
+                patterns: [
+                    // Lat/Long pairs
+                    /\b-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+\b/g,
+                    /\b(?:Lat|Latitude)[\s:#-]*(-?\d{1,3}\.\d+)\b/gi,
+                    /\b(?:Lon|Longitude)[\s:#-]*(-?\d{1,3}\.\d+)\b/gi,
+                    // GPS coordinates
+                    /\b(?:GPS|Coordinates)[\s:#-]*(-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+)\b/gi
+                ],
+                category: 'miscellaneous',
+                type: 'Coordinates',
+                replacement: '[COORDINATES-REDACTED]'
+            },
+
+            // PIN numbers and access codes
+            access_codes: {
+                patterns: [
+                    // PIN numbers and access codes
+                    /\b(?:PIN|Access\s*PIN|access\s*log\s*PIN)[\s:#-]*(\d{4,6})\b/gi,
+                    // Safe deposit box access codes
+                    /\b(?:Box\s*#|access\s*code)[\s:#-]*([A-Z0-9]{3,6})\b/gi
+                ],
+                category: 'miscellaneous',
+                type: 'Access Code',
+                replacement: '[ACCESS-CODE-REDACTED]'
+            },
+
+            // Device identifiers
+            device_id: {
+                patterns: [
+                    // IMEI (15 digits)
+                    /\b(?:IMEI|Device\s*IMEI)[\s:#-]*(\d{15})\b/gi,
+                    // IMSI (15 digits)
+                    /\b(?:IMSI|SIM\s*ID)[\s:#-]*(\d{15})\b/gi,
+                    // UUID
+                    /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
+                    // Generic Device ID
+                    /\b(?:Device\s*ID|Hardware\s*ID)[\s:#-]*([A-Z0-9]{8,20})\b/gi
+                ],
+                category: 'miscellaneous',
+                type: 'Device ID',
+                replacement: '[DEVICE-ID-REDACTED]'
+            },
+
+            // Passwords (be very careful with this)
+            passwords: {
+                patterns: [
+                    // Only when explicitly labeled
+                    /\b(?:Password|Pass|Pwd)[\s:#-]*([^\s]{8,})\b/gi,
+                    /\b(?:Secret|API\s*Key)[\s:#-]*([A-Za-z0-9+\/]{20,})\b/gi
+                ],
+                category: 'miscellaneous',
+                type: 'Password',
+                replacement: '[PASSWORD-REDACTED]'
+            }
+
+        };
+
+        // Context keywords for confidence scoring
+        const context_keywords = {
+            ssn: ['social', 'security', 'ssn', 'tax', 'taxpayer', 'tin', 'itin', 'ein'],
+            dob: ['born', 'birth', 'birthday', 'dob', 'date of birth', 'birthdate'],
+            email: ['email', 'e-mail', 'mail', 'contact', 'reach', 'send'],
+            phone: ['phone', 'tel', 'mobile', 'cell', 'fax', 'text', 'sms'],
+            address: ['address', 'street', 'avenue', 'road', 'city', 'state', 'zip', 'live', 'reside'],
+            names: ['name', 'called', 'named', 'employee', 'patient', 'client', 'person', 'emergency contact'],
+            credit_card: ['card', 'credit', 'debit', 'visa', 'mastercard', 'amex', 'discover', 'payment'],
+            bank_account: ['account', 'bank', 'routing', 'checking', 'savings', 'wire', 'iban'],
+            medical_record: ['patient', 'medical', 'health', 'mrn', 'chart', 'hospital'],
+            employee_id: ['employee', 'staff', 'worker', 'badge', 'emp', 'eid'],
+            trust: ['trust', 'llc', 'corp', 'inc', 'business', 'entity', 'company'],
+            client_id: ['client', 'customer', 'cust', 'account', 'banking'],
+            tax_id: ['tax', 'ein', 'itin', 'employer', 'identification', 'federal'],
+            drivers_license: ['license', 'driver', 'dl', 'dmv', 'driving', 'cdl'],
+            passport: ['passport', 'travel', 'immigration', 'pp', 'book', 'card'],
+            visa: ['visa', 'immigration', 'work', 'authorization', 'green card', 'ead'],
+            medical_codes: ['cpt', 'icd', 'procedure', 'diagnosis', 'billing', 'code'],
+            health_insurance: ['insurance', 'member', 'group', 'policy', 'coverage', 'plan'],
+            medical_conditions: ['diagnosis', 'diagnosed', 'disability', 'condition', 'disorder', 'syndrome', 'impairment', 'treatment', 'therapy', 'medication'],
+            dependent_id: ['dependent', 'child', 'family', 'spouse', 'beneficiary'],
+            salary: ['salary', 'wage', 'compensation', 'pay', 'earnings', 'income'],
+            investment_securities: ['cusip', 'portfolio', 'investment', 'mutual fund', 'advisor'],
+            insurance_policy: ['policy', 'claim', 'insurance', 'coverage', 'premium', 'deductible'],
+            legal_case: ['case', 'docket', 'court', 'legal', 'lawsuit', 'litigation'],
+            ip_address: ['ip', 'address', 'network', 'server', 'connection'],
+            mac_address: ['mac', 'address', 'network', 'device', 'hardware'],
+            security_tokens: ['token', 'auth', 'authentication', 'api', 'key', 'secret'],
+            vin: ['vin', 'vehicle', 'car', 'auto', 'license plate'],
+            usernames: ['username', 'login', 'user', 'account', 'handle', 'admin'],
+            domains: ['domain', 'website', 'url', 'site', 'web', 'online'],
+            coordinates: ['gps', 'location', 'coordinates', 'latitude', 'longitude', 'geo'],
+            access_codes: ['pin', 'code', 'access', 'security', 'unlock', 'password'],
+            military_id: ['military', 'dod', 'service', 'armed forces', 'veteran'],
+            national_id: ['national', 'citizen', 'voter', 'election', 'registration'],
+            device_id: ['device', 'imei', 'imsi', 'hardware', 'serial', 'uuid'],
+            passwords: ['password', 'pass', 'pwd', 'secret', 'credential', 'login'],
+            file_names: ['file', 'document', 'attachment', 'download', 'upload', 'pdf', 'doc']
+        };
+
+        // Confidence scoring function
+        function calculate_confidence(text, detection, pattern_key) {
+            const context_window = 50; // Characters to check before/after
+            const start = Math.max(0, detection.start - context_window);
+            const end = Math.min(text.length, detection.end + context_window);
+            const context = text.substring(start, end).toLowerCase();
+
+            // Get keywords for this pattern type
+            const keywords = context_keywords[pattern_key] || [];
+
+            // Check for keyword matches
+            let keyword_matches = 0;
+            keywords.forEach(keyword => {
+                if (context.includes(keyword)) {
+                    keyword_matches++;
+                }
+            });
+
+            // Calculate confidence score
+            // Force high confidence for critical items
+            if (pattern_key === 'ssn' || pattern_key === 'dob' || pattern_key === 'bank_account' ||
+                pattern_key === 'credit_card' || pattern_key === 'medical_record' || pattern_key === 'passport' ||
+                pattern_key === 'names' || pattern_key === 'medical_conditions') {
+                return 'high';
+            }
+
+            if (keyword_matches >= 2) {
+                return 'high';
+            } else if (keyword_matches === 1) {
+                return 'medium';
+            } else {
+                return 'low';
+            }
+        }
+
+        // Performance: Split text into chunks for processing
+        function split_text_into_chunks(text, chunk_size) {
+            const chunks = [];
+            for (let i = 0; i < text.length; i += chunk_size) {
+                chunks.push({
+                    text: text.slice(i, i + chunk_size),
+                    start_offset: i
+                });
+            }
+            return chunks;
+        }
+
+        // Dialog functions
+        function close_dialog() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('exportDialog').style.display = 'none';
+            document.getElementById('helpDialog').style.display = 'none';
+        }
+
+
+        function show_help() {
+            document.getElementById('overlay').style.display = 'block';
+            document.getElementById('helpDialog').style.display = 'block';
+        }
+
+        function close_help() {
+            close_dialog();
+        }
+
+        // Utility functions
+        function escape_html(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function update_progress(percent) {
+            document.getElementById('progressBar').style.width = percent + '%';
+        }
+
+        function update_status(message) {
+            document.getElementById('statusText').textContent = 'Mode: Scan';
+        }
+
+        function add_pulse(button_id) {
+            const button = document.getElementById(button_id);
+            if (button && !button.classList.contains('pulse')) {
+                button.classList.add('pulse');
+            }
+        }
+
+        function remove_pulse(button_id) {
+            const button = document.getElementById(button_id);
+            if (button && button.classList.contains('pulse')) {
+                button.classList.remove('pulse');
+            }
+        }
+
+        function remove_all_pulses() {
+            ['detectButton', 'sanitizeButton', 'copyButton', 'clearAllButton'].forEach(id => {
+                remove_pulse(id);
+            });
+        }
+
+        // Input statistics
+        function update_input_stats() {
+            const text = document.getElementById('inputText').value;
+            const chars = text.length;
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+
+            document.getElementById('inputStats').textContent = `${words} words, ${chars} chars`;
+
+            if (text.length > 0 && state.detections.length === 0) {
+                add_pulse('detectButton');
+            } else if (text.length === 0) {
+                remove_pulse('detectButton');
+            }
+        }
+
+
+        // Privacy timer functions
+        function start_auto_clear_timer() {
+            clear_auto_clear_timer();
+
+            const timer_display = document.getElementById('privacyTimer');
+            const timer_text = document.getElementById('timerDisplay');
+            timer_display.style.display = 'block';
+
+            const start_time = Date.now();
+            const end_time = start_time + (state.auto_clear_seconds * 1000);
+
+            // Start inactivity monitoring for BlurSession.com blur
+            blurSecurity.startMonitoring();
+
+            function update_timer() {
+                const now = Date.now();
+                const remaining_ms = Math.max(0, end_time - now);
+                const seconds_remaining = Math.ceil(remaining_ms / 1000);
+
+                const minutes = Math.floor(seconds_remaining / 60);
+                const seconds = seconds_remaining % 60;
+                const time_string = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                // Turn red at 59 seconds or less
+                if (seconds_remaining <= 59) {
+                    timer_text.style.color = '#FF3333'; // Lighter red for better visibility
+                    // Removed font-weight change to prevent size shift
+                } else {
+                    timer_text.style.color = ''; // Reset to default
+                }
+
+                timer_text.textContent = time_string;
+
+                if (remaining_ms <= 0) {
+                    // Clear timer first
+                    clear_auto_clear_timer();
+
+                    // Clear all data immediately
+                    clear_all_no_confirm();
+
+                    // Force immediate reload - no blocking dialogs
+                    window.location.reload(true);
+                }
+            }
+
+            // Initial update
+            update_timer();
+
+            // Update every 100ms for better accuracy
+            state.auto_clear_timer = setInterval(update_timer, 100);
+        }
+
+        function clear_auto_clear_timer() {
+            if (state.auto_clear_timer) {
+                clearInterval(state.auto_clear_timer);
+                state.auto_clear_timer = null;
+            }
+            // Also clear backup timer if it exists
+            if (state.backup_clear_timer) {
+                clearTimeout(state.backup_clear_timer);
+                state.backup_clear_timer = null;
+            }
+            // Stop BlurSession.com blur monitoring
+            blurSecurity.stopMonitoring();
+            // Reset timer text color and weight when clearing
+            const timer_text = document.getElementById('timerDisplay');
+            if (timer_text) {
+                timer_text.style.color = '';
+            }
+            // Keep timer visible but stop countdown
+        }
+
+        // Detection statistics
+        function update_statistics() {
+            const stats = {
+                total: state.detections.length,
+                excluded: state.excluded_indices.size,
+                redacted: 0,
+                high: 0,
+                medium: 0,
+                low: 0
+            };
+
+            state.detections.forEach((d, index) => {
+                // Count confidence levels
+                if (d.confidence === 'high') stats.high++;
+                else if (d.confidence === 'medium') stats.medium++;
+                else if (d.confidence === 'low') stats.low++;
+
+                // Count redacted items (items NOT excluded)
+                if (!state.excluded_indices.has(index)) {
+                    stats.redacted++;
+                }
+            });
+
+            // Update all statistics
+            document.getElementById('totalDetections').textContent = stats.total;
+            document.getElementById('highConfidence').textContent = stats.high;
+            document.getElementById('mediumConfidence').textContent = stats.medium;
+            document.getElementById('lowConfidence').textContent = stats.low;
+            document.getElementById('excludedCount').textContent = stats.excluded;
+            document.getElementById('redactedCount').textContent = stats.redacted;
+        }
+
+// Fix for Word/LibreOffice paste formatting
+function setupPasteHandler() {
+    const inputText = document.getElementById('inputText');
+    
+    inputText.addEventListener('paste', function(e) {
+        e.preventDefault();
+        
+        // Get the plain text from clipboard
+        let text = '';
+        if (e.clipboardData && e.clipboardData.getData) {
+            text = e.clipboardData.getData('text/plain');
+        } else if (window.clipboardData && window.clipboardData.getData) {
+            text = window.clipboardData.getData('Text');
+        }
+        
+        // Clean up Word/LibreOffice formatting issues
+        // Replace non-breaking spaces with regular spaces
+        text = text.replace(/\u00A0/g, ' ');
+        
+        // Replace multiple spaces with single space EXCEPT at line starts
+        text = text.replace(/([^\n]) {2,}/g, '$1 ');
+        
+        // Normalize line breaks
+        text = text.replace(/\r\n/g, '\n');
+        text = text.replace(/\r/g, '\n');
+        
+        // Remove zero-width spaces
+        text = text.replace(/\u200B/g, '');
+        
+        // Remove multiple blank lines (more than 2 consecutive)
+        text = text.replace(/\n{3,}/g, '\n\n');
+        
+        // Trim trailing whitespace from each line
+        text = text.split('\n').map(line => line.trimEnd()).join('\n');
+        
+        // Insert the cleaned text
+        const start = this.selectionStart;
+        const end = this.selectionEnd;
+        const value = this.value;
+        this.value = value.substring(0, start) + text + value.substring(end);
+        
+        // Move cursor to end of inserted text
+        this.selectionStart = this.selectionEnd = start + text.length;
+        
+        // Trigger input event for character count update
+        this.dispatchEvent(new Event('input'));
+    });
+}
+
+// Main detection function
+function detect_pii() {
+    if (state.sanitized_text) {
+        alert('Text has already been sanitized. Clear all to start over.');
+        return;
+    }
+    
+    const input_text = document.getElementById('inputText').value;
+    
+    if (!input_text.trim()) {
+        alert('Please enter text to analyze');
+        return;
+    }
+
+    state.processing = true;
+    document.getElementById('detectButton').disabled = true;
+    document.getElementById('uploadButton').disabled = true;
+    document.getElementById('spinner').style.display = 'inline-block';
+    document.getElementById('progressContainer').classList.add('active');
+
+    state.detections = [];
+    state.excluded_indices.clear();
+
+    setTimeout(() => {
+        perform_detection(input_text);
+    }, 10);
+}
+
+        async function perform_detection(text) {
+            const detections = [];
+
+            // Always use parallel processing for speed and consistency
+            await perform_detection_parallel(text, detections);
+        }
+
+        // Parallel detection using virtual threads
+        async function perform_detection_parallel(text, detections) {
+            // Dynamic chunk size based on text length
+            const chunkSize = Math.min(25000, Math.max(5000, Math.floor(text.length / 4)));
+            const chunks = split_text_into_chunks(text, chunkSize);
+            state.total_chunks = chunks.length;
+            state.current_chunk = 0;
+
+            document.getElementById('statusText').innerHTML =
+                `<strong>Processing ${chunks.length} chunks in parallel</strong>`;
+
+            // Process chunks using direct execution
+            const allDetections = [];
+
+            // Process each chunk
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i];
+                state.current_chunk = i + 1;
+                const progress = (state.current_chunk / chunks.length) * 100;
+                update_progress(progress);
+
+                // Process patterns on this chunk
+                Object.entries(detection_patterns).forEach(([key, config]) => {
+                    config.patterns.forEach(pattern => {
+                        // Create new regex instance for each chunk to avoid state issues
+                        const regex = new RegExp(pattern.source, pattern.flags);
+                        let match;
+                        let count = 0;
+                        const maxPerPattern = 50;
+
+                        while ((match = regex.exec(chunk.text)) !== null && count < maxPerPattern) {
+                            allDetections.push({
+                                type: config.type,
+                                category: config.category,
+                                text: match[0],
+                                start: chunk.start_offset + match.index,
+                                end: chunk.start_offset + match.index + match[0].length,
+                                replacement: config.replacement,
+                                confidence: calculate_confidence(text, {
+                                    start: chunk.start_offset + match.index,
+                                    end: chunk.start_offset + match.index + match[0].length
+                                }, key)
+                            });
+                            count++;
+
+                            // Stop if we've hit the maximum detection limit
+                            if (allDetections.length >= state.max_detections) {
+                                console.warn(`Hit maximum detection limit of ${state.max_detections}`);
+                                break;
+                            }
+
+                            // Prevent infinite loops on zero-width matches
+                            if (match.index === regex.lastIndex) {
+                                regex.lastIndex++;
+                            }
+                            if (match[0].length === 0) {
+                                regex.lastIndex++;
+                            }
+                        }
+                    });
+                });
+
+                // Yield to browser every few chunks to prevent blocking
+                if (i % 3 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+
+            // Sort and remove overlaps
+            allDetections.sort((a, b) => a.start - b.start);
+            state.detections = remove_overlapping_detections_optimized(allDetections);
+
+            display_results(text);
+            finalize_detection();
+        }
+
+        // Standard detection for smaller texts
+        function perform_detection_standard(text, detections) {
+            let progress = 0;
+            const total_patterns = Object.keys(detection_patterns).length;
+
+            Object.entries(detection_patterns).forEach(([key, config], index) => {
+                config.patterns.forEach(pattern => {
+                    let match;
+                    pattern.lastIndex = 0;
+
+                    while ((match = pattern.exec(text)) !== null) {
+                        const detection = {
+                            type: config.type,
+                            category: config.category,
+                            text: match[0],
+                            start: match.index,
+                            end: match.index + match[0].length,
+                            replacement: config.replacement,
+                            confidence: calculate_confidence(text, {
+                                start: match.index,
+                                end: match.index + match[0].length
+                            }, key)
+                        };
+                        detections.push(detection);
+                    }
+                });
+
+                progress = ((index + 1) / total_patterns) * 100;
+                update_progress(progress);
+            });
+
+            // Sort and remove overlaps
+            detections.sort((a, b) => a.start - b.start);
+            state.detections = remove_overlapping_detections(detections);
+
+            display_results(text);
+            finalize_detection();
+        }
+
+        // Finalize detection process
+        function finalize_detection() {
+            document.getElementById('detectButton').disabled = !!state.sanitized_text;
+            document.getElementById('uploadButton').disabled = !!state.sanitized_text || state.detections.length > 0;
+            document.getElementById('sanitizeButton').disabled = state.detections.length === 0;
+            document.getElementById('exportButton').disabled = state.detections.length === 0;
+            document.getElementById('spinner').style.display = 'none';
+
+            // Reset status
+            document.getElementById('statusText').innerHTML = '<strong>[TEXT REDACTOR]</strong>';
+
+            remove_all_pulses();
+            if (state.detections.length > 0) {
+                add_pulse('sanitizeButton');
+            }
+
+            setTimeout(() => {
+                document.getElementById('progressContainer').classList.remove('active');
+                update_progress(0);
+            }, 500);
+
+            state.processing = false;
+            update_statistics();
+
+            if (state.detections.length > 0) {
+                start_auto_clear_timer();
+            }
+        }
+
+        function remove_overlapping_detections(detections) {
+            // Use a more efficient algorithm for large datasets
+            if (detections.length > 10000) {
+                return remove_overlapping_detections_optimized(detections);
+            }
+
+            // Original algorithm for smaller datasets
+            const filtered = [];
+
+            for (const detection of detections) {
+                let shouldAdd = true;
+
+                // Check if this detection overlaps with any existing detection
+                for (let i = 0; i < filtered.length; i++) {
+                    const existing = filtered[i];
+
+                    // Check for overlap: detection overlaps if it starts before existing ends
+                    // and ends after existing starts
+                    if (detection.start < existing.end && detection.end > existing.start) {
+                        // There's an overlap - decide which one to keep
+                        if (detection.text.length > existing.text.length ||
+                            (detection.text.length === existing.text.length && detection.type === existing.type)) {
+                            // Replace the existing detection with this longer/equivalent one
+                            filtered[i] = detection;
+                        }
+                        shouldAdd = false;
+                        break;
+                    }
+                }
+
+                if (shouldAdd) {
+                    filtered.push(detection);
+                }
+            }
+
+            return filtered;
+        }
+
+        // Optimized version for large datasets
+        function remove_overlapping_detections_optimized(detections) {
+            if (detections.length === 0) return [];
+
+            // Sort is already done before calling this
+            const result = [detections[0]];
+
+            for (let i = 1; i < detections.length; i++) {
+                const current = detections[i];
+                const last = result[result.length - 1];
+
+                // No overlap with last detection
+                if (current.start >= last.end) {
+                    result.push(current);
+                }
+
+                // Overlap - keep the longer one
+                else if (current.text.length > last.text.length) {
+                    result[result.length - 1] = current;
+                }
+                // Skip if shorter or equal length
+            }
+
+            return result;
+        }
+        function display_results(original_text) {
+            const output_element = document.getElementById('outputText');
+            output_element.style.color = ''; // Reset to default color
+
+            if (state.detections.length === 0) {
+                output_element.innerHTML = '<span style="color: green;">✓ No PII detected in the text.</span>';
+                output_element.contentEditable = false;
+                return;
+            }
+
+            // Store original text for later use
+            state.original_text = original_text;
+
+            // Cap detections for display
+            if (state.detections.length > state.max_display_detections) {
+                // Show warning and truncate
+                output_element.innerHTML = `
+    <div style="padding: 10px; background: #FFCC00; border: 2px solid #FF9900; margin-bottom: 10px;">
+        <strong>⚠️ Performance Limit Reached</strong><br>
+        Document size: ~${Math.round(original_text.length / 6.5).toLocaleString()} words<br>
+        Found: ${state.detections.length.toLocaleString()} sensitive items<br>
+        <span style="color: #660000;">Displaying first ${state.max_display_detections.toLocaleString()} items for performance.</span><br>
+        <strong style="color: #006600;">✓ All ${state.detections.length.toLocaleString()} items will still be redacted</strong><br>
+        <em style="font-size: 10px;">Tip: For large documents, use "Clean Text" directly without reviewing each item.</em>
+    </div>`;
+
+                // Truncate detections for display only
+                const displayDetections = state.detections.slice(0, state.max_display_detections);
+                display_inline_results_truncated(original_text, displayDetections);
+            } else {
+                // Normal display
+                display_inline_results(original_text);
+            }
+        }
+        // Display truncated results to prevent browser crash
+        function display_inline_results_truncated(original_text, displayDetections) {
+            const output_element = document.getElementById('outputText');
+            let highlighted_html = output_element.innerHTML; // Keep the warning
+            let last_end = 0;
+
+            displayDetections.forEach((detection, displayIndex) => {
+                const actualIndex = state.detections.indexOf(detection);
+                const before_text = original_text.substring(last_end, detection.start);
+                highlighted_html += escape_html(before_text);
+
+                const detection_text = escape_html(detection.text);
+
+                highlighted_html += `<span class="pii-highlight ${detection.category} confidence-${detection.confidence}" ` +
+                    `data-index="${actualIndex}" ` +
+                    `data-confidence="${detection.confidence}" ` +
+                    `onclick="window.toggle_detection(${actualIndex})" ` +
+                    `onmouseover="window.show_tooltip(event, 'Click to keep (Confidence: ${detection.confidence})')" ` +
+                    `onmouseout="window.hide_tooltip()">` +
+                    detection_text +
+                    `</span>`;
+
+                last_end = detection.end;
+            });
+
+            // Don't show remaining text, just indicate truncation
+            highlighted_html += '<br><br><strong>... (display truncated at ' + state.max_display_detections.toLocaleString() + ' detections)</strong>';
+
+            output_element.innerHTML = highlighted_html;
+            output_element.contentEditable = true;
+        }
+
+
+        // Standard inline display implementation
+        function display_inline_results(original_text) {
+            const output_element = document.getElementById('outputText');
+            output_element.contentEditable = true;
+
+            let highlighted_html = '';
+            let last_end = 0;
+
+            state.detections.forEach((detection, index) => {
+                const before_text = original_text.substring(last_end, detection.start);
+                highlighted_html += escape_html(before_text);
+
+                const detection_text = escape_html(detection.text);
+
+                highlighted_html += `<span class="pii-highlight ${detection.category} confidence-${detection.confidence}" ` +
+                    `data-index="${index}" ` +
+                    `data-confidence="${detection.confidence}" ` +
+                    `onclick="window.toggle_detection(${index})" ` +
+                    `onmouseover="window.show_tooltip(event, 'Click to keep (Confidence: ${detection.confidence})')" ` +
+                    `onmouseout="window.hide_tooltip()">` +
+                    detection_text +
+                    `</span>`;
+
+                last_end = detection.end;
+            });
+
+            const remaining_text = original_text.substring(last_end);
+            highlighted_html += escape_html(remaining_text);
+
+            output_element.innerHTML = highlighted_html;
+        }
+
+        function toggle_detection(index) {
+            const element = document.querySelector(`[data-index="${index}"]`);
+            if (!element) return;
+
+            if (state.excluded_indices.has(index)) {
+                state.excluded_indices.delete(index);
+                element.classList.remove('excluded');
+            } else {
+                state.excluded_indices.add(index);
+                element.classList.add('excluded');
+            }
+
+            update_statistics();
+        }
+
+function sanitize_text() {
+    const input_text = document.getElementById('inputText').value;
+    let sanitized = input_text;
+
+    // Process from end to beginning to maintain positions
+    // Only replace items that are NOT excluded
+    for (let i = state.detections.length - 1; i >= 0; i--) {
+        if (state.excluded_indices.has(i)) {
+            // Skip excluded items - keep original text
+            continue;
+        }
+
+        const detection = state.detections[i];
+        sanitized = sanitized.substring(0, detection.start) +
+            detection.replacement +
+            sanitized.substring(detection.end);
+    }
+
+    state.sanitized_text = sanitized;
+
+    // Display with bold redactions while preserving editable state
+    const output_element = document.getElementById('outputText');
+
+    // MOBILE CHROME FIX: Force a complete reflow on mobile devices
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        // Temporarily clear content to force mobile Chrome to reset styles
+        output_element.innerHTML = '';
+        output_element.style.backgroundColor = 'white';
+        // Force reflow
+        output_element.offsetHeight;
+    }
+
+    // CRITICAL: Preserve the contenteditable state that was set during detection
+    output_element.contentEditable = true;
+    output_element.style.whiteSpace = 'pre-wrap';
+    output_element.style.wordWrap = 'break-word';
+    output_element.style.overflowWrap = 'break-word';
+
+    // Build HTML with bold tags directly
+    let html_content = '';
+    let lines = sanitized.split('\n');
+    
+    for (let i = 0; i < lines.length; i++) {
+        if (i > 0) {
+            html_content += '\n';
+        }
+        
+        // Process each line for bold redactions
+        let line_html = lines[i].replace(/(\[[A-Z-]+-REDACTED\])/g, '<strong>$1</strong>');
+        html_content += line_html;
+    }
+
+    // Set innerHTML directly to preserve formatting capability
+    output_element.innerHTML = html_content;
+    
+    // CRITICAL: Force contenteditable to refresh its internal state
+    output_element.contentEditable = false;
+    output_element.contentEditable = true;
+    
+    // Focus then blur to ensure proper state without selection
+    output_element.focus();
+    window.getSelection().removeAllRanges();
+    output_element.blur();
+
+    document.getElementById('copyButton').disabled = false;
+    document.getElementById('sanitizeButton').disabled = true;
+    document.getElementById('detectButton').disabled = true;
+    document.getElementById('uploadButton').disabled = true;
+
+    remove_all_pulses();
+    add_pulse('copyButton');
+    add_pulse('clearAllButton');
+}
+
+
+        // Browser detection function
+        function detectBrowser() {
+            const userAgent = navigator.userAgent.toLowerCase();
+
+            if (userAgent.indexOf('firefox') > -1) {
+                return 'firefox';
+            } else if (userAgent.indexOf('edg') > -1) {
+                return 'edge';
+            } else if (userAgent.indexOf('chrome') > -1 && userAgent.indexOf('edg') === -1) {
+                return 'chrome';
+            } else {
+                return 'other';
+            }
+        }
+
+        function copy_sanitized() {
+            const output_element = document.getElementById('outputText');
+            const is_detection_results = output_element.innerHTML.includes('pii-highlight');
+            const browser = detectBrowser();
+
+            // Use browser-specific approach
+            performBrowserSpecificCopy(output_element, is_detection_results, browser);
+        }
+
+        function performBrowserSpecificCopy(output_element, is_detection_results, browser) {
+            // Create a temporary container
+            const temp_container = document.createElement('div');
+            temp_container.style.position = 'fixed';
+            temp_container.style.left = '0';
+            temp_container.style.top = '0';
+            temp_container.style.width = 'auto';
+            temp_container.style.height = 'auto';
+            temp_container.style.overflow = 'visible';
+            temp_container.style.zIndex = '-9999';
+            temp_container.style.opacity = '0';
+            temp_container.setAttribute('contenteditable', 'true');
+
+            // Universal approach: Use consistent HTML that works across all browsers
+            if (is_detection_results) {
+                // For highlights - use a hybrid approach that works everywhere
+                let processedHTML = output_element.innerHTML;
+
+                // Convert spans to a format that preserves formatting in all browsers
+                processedHTML = processedHTML.replace(/<span class="pii-highlight([^"]*)"[^>]*>([^<]+)<\/span>/g,
+                    function (match, classes, content) {
+                        let bgColor = '#FFFF99';
+                        let borderColor = '#E6E600';
+                        let borderWidth = '1px';
+                        let fontWeight = 'normal';
+
+                        if (classes.includes('confidence-high')) {
+                            borderColor = '#FF0000';
+                            fontWeight = 'bold';
+                        } else if (classes.includes('confidence-medium')) {
+                            borderColor = '#FFA500';
+                        } else if (classes.includes('confidence-low')) {
+                            borderColor = '#0000FF';
+                        }
+
+                        if (classes.includes('excluded')) {
+                            bgColor = '#E0E0E0';
+                            borderColor = '#808080';
+                        }
+
+                        // Use a combination that works in all browsers
+                        if (browser === 'firefox') {
+                            // Firefox: Use Unicode markers since it won't copy background colors
+                            let firefoxContent = content;
+
+                            // Add visual markers based on confidence level
+                            if (classes.includes('confidence-high')) {
+                                // High confidence: Bold with box
+                                firefoxContent = `【${content}】`;
+                            } else if (classes.includes('confidence-medium')) {
+                                // Medium confidence: Regular box
+                                firefoxContent = `〖${content}〗`;
+                            } else if (classes.includes('confidence-low')) {
+                                // Low confidence: Light markers
+                                firefoxContent = `〔${content}〕`;
+                            }
+
+                            // If excluded, add strikethrough markers
+                            if (classes.includes('excluded')) {
+                                firefoxContent = `~~${firefoxContent}~~`;
+                            }
+
+                            // Still make high confidence bold
+                            if (fontWeight === 'bold') {
+                                return `<strong>${firefoxContent}</strong>`;
+                            } else {
+                                return firefoxContent;
+                            }
+                        } else {
+                            // Chrome/Edge implementation
+                            return `<span style="background-color: ${bgColor} !important; border: ${borderWidth} solid ${borderColor} !important; padding: 0 2px !important; font-weight: ${fontWeight} !important; display: inline !important; text-decoration: none !important;">${content}</span>`;
+                        }
+                    });
+
+                // Wrap in a container that preserves formatting
+                if (browser === 'firefox') {
+                    // Firefox: Add contenteditable to preserve more formatting
+                    temp_container.innerHTML = `<div contenteditable="true" style="font-family: 'Courier New', monospace !important; font-size: 12px !important; line-height: 1.4 !important; white-space: pre-wrap !important; word-wrap: break-word !important; -moz-user-select: text !important;">${processedHTML}</div>`;
+                } else {
+                    // Chrome/Edge: Keep as is
+                    temp_container.innerHTML = `<div style="font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word;">${processedHTML}</div>`;
+                }
+
+            } else {
+                // For bold text - use consistent approach
+                let processedHTML = output_element.innerHTML;
+
+                // Replace strong tags with browser-specific formatting
+                if (browser === 'firefox') {
+                    // Firefox: Use <b> with specific styling
+                    processedHTML = processedHTML.replace(/<strong>([^<]+)<\/strong>/g,
+                        '<b style="font-weight: 900; color: black; display: inline;">[BOLD]$1[/BOLD]</b>');
+                } else {
+                    // Chrome/Edge: Use Arial Black font which is inherently bold
+                    processedHTML = processedHTML.replace(/<strong>([^<]+)<\/strong>/g,
+                        '<span style="font-family: Arial Black, sans-serif !important; font-weight: 900 !important; color: black !important; display: inline !important;"><b style="font-weight: bold !important;">$1</b></span>');
+                }
+
+                // Wrap in monospace container
+                temp_container.innerHTML = `<div style="font-family: 'Courier New', monospace !important; font-size: 12px !important; line-height: 1.4 !important; white-space: pre-wrap !important; word-wrap: break-word !important;">${processedHTML}</div>`;
+            }
+
+            document.body.appendChild(temp_container);
+
+            // Firefox-specific: Force contenteditable focus for better formatting preservation
+            if (browser === 'firefox' && temp_container.firstChild) {
+                temp_container.firstChild.contentEditable = 'true';
+                temp_container.firstChild.focus();
+            }
+
+            try {
+                // Use a unified copy approach that works better across browsers
+                temp_container.focus();
+
+                // Create and dispatch a select all event
+                const selectAllEvent = new Event('selectall', { bubbles: true });
+                temp_container.dispatchEvent(selectAllEvent);
+
+                // Manually select all content
+                const range = document.createRange();
+                range.selectNodeContents(temp_container);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+
+                // Force selection update
+                temp_container.style.userSelect = 'text';
+                document.execCommand('selectAll', false, null);
+
+                // Copy with multiple attempts
+                let success = false;
+
+                // Try method 1: Standard execCommand
+                success = document.execCommand('copy', false, null);
+
+                if (!success) {
+                    // Try method 2: With user interaction simulation
+                    const copyEvent = new ClipboardEvent('copy', {
+                        bubbles: true,
+                        cancelable: true,
+                        dataType: 'text/html',
+                        data: temp_container.innerHTML
+                    });
+                    success = temp_container.dispatchEvent(copyEvent);
+                }
+
+                if (!success) throw new Error('Copy failed');
+
+                show_copy_success();
+
+            } catch (e) {
+                console.error('Copy error:', e);
+                manualCopyFallback(output_element);
+            } finally {
+                // Clean up
+                window.getSelection().removeAllRanges();
+                setTimeout(() => {
+                    if (document.body.contains(temp_container)) {
+                        document.body.removeChild(temp_container);
+                    }
+                }, 100);
+            }
+        }
+
+        // Manual copy fallback implementation
+        function manualCopyFallback(output_element) {
+            // Select the output element content for manual copy
+            const range = document.createRange();
+            range.selectNodeContents(output_element);
+
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            alert('Content selected. Press Ctrl+C (or Cmd+C on Mac) to copy.');
+        }
+
+        async function copy_with_enhanced_formatting(text, is_detection_results, output_element) {
+            // Create different formats for cross-browser compatibility
+            const plain_text = text;
+            let html_text, rtf_text;
+
+            if (is_detection_results) {
+                // Detection Results: Create HTML with highlighting preserved
+                html_text = create_html_with_highlighting(output_element);
+                rtf_text = create_rtf_with_highlighting(text, output_element);
+            } else {
+                // Clean Text: Create HTML and RTF with bold redactions
+                html_text = create_html_formatted_text(text);
+                rtf_text = create_rtf_formatted_text(text);
+            }
+
+            // ALWAYS use execCommand for consistent cross-browser formatting
+            // This ensures Firefox preserves highlights and Chrome/Edge preserve bold
+            try {
+                await copy_using_execcommand_fallback(html_text, plain_text);
+                show_copy_success();
+            } catch (e) {
+                // Fallback: plain text only
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(plain_text);
+                    show_copy_success();
+                } else {
+                    // Last resort: show text for manual copy
+                    prompt('Copy this text manually (Ctrl+C):', plain_text);
+                }
+            }
+        }
+
+        async function copy_using_execcommand_fallback(html_text, plain_text) {
+            // Create a hidden contenteditable div with the formatted content
+            const temp_div = document.createElement('div');
+            temp_div.style.position = 'fixed';
+            temp_div.style.left = '-9999px';
+            temp_div.style.top = '-9999px';
+            temp_div.style.opacity = '0';
+            temp_div.style.width = '1px';
+            temp_div.style.height = '1px';
+            temp_div.style.overflow = 'hidden';
+            temp_div.contentEditable = true;
+
+            // For Firefox, we need to parse and re-create the HTML
+            if (navigator.userAgent.includes('Firefox')) {
+                // Create a document fragment from the HTML
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html_text, 'text/html');
+                temp_div.innerHTML = doc.body.innerHTML;
+            } else {
+                temp_div.innerHTML = html_text;
+            }
+
+            document.body.appendChild(temp_div);
+
+            try {
+                // Focus the element first
+                temp_div.focus();
+
+                // Select all content
+                document.execCommand('selectAll', false, null);
+
+                // Copy using execCommand (preserves formatting)
+                const success = document.execCommand('copy');
+                if (!success) {
+                    throw new Error('execCommand failed');
+                }
+            } finally {
+                // Clean up
+                document.body.removeChild(temp_div);
+                window.getSelection().removeAllRanges();
+            }
+        }
+
+        function create_html_with_highlighting(output_element) {
+            // Create HTML that preserves highlighting for Detection Results
+            // Use inline styles for better cross-browser support
+            let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family: 'Courier New', monospace; font-size: 12pt; line-height: 1.4;">`;
+
+            // Clone the content and convert to inline styles
+            const temp_div = document.createElement('div');
+            temp_div.innerHTML = output_element.innerHTML;
+
+            // Convert all highlighted spans to have inline styles
+            const highlights = temp_div.querySelectorAll('.pii-highlight');
+            highlights.forEach(span => {
+                let inline_style = 'background-color: #FFFF99; border: 1px solid #E6E600; padding: 0px 2px;';
+
+                if (span.classList.contains('confidence-high')) {
+                    inline_style = 'background-color: #FFFF99; border: 1px solid #FF0000; padding: 0px 2px; font-weight: bold;';
+                } else if (span.classList.contains('confidence-medium')) {
+                    inline_style = 'background-color: #FFFF99; border: 1px solid #FFA500; padding: 0px 2px;';
+                } else if (span.classList.contains('confidence-low')) {
+                    inline_style = 'background-color: #FFFF99; border: 1px solid #0000FF; padding: 0px 2px;';
+                }
+
+                if (span.classList.contains('excluded')) {
+                    inline_style += ' background-color: #E0E0E0; border-color: #808080; opacity: 0.7;';
+                }
+
+                span.setAttribute('style', inline_style);
+                // Remove onclick handlers
+                span.removeAttribute('onclick');
+                span.removeAttribute('onmouseover');
+                span.removeAttribute('onmouseout');
+            });
+
+            html += temp_div.innerHTML;
+            html += '</body></html>';
+
+            return html;
+        }
+
+        function create_rtf_with_highlighting(text, output_element) {
+            // Create RTF with highlighting approximated as background colors
+            let rtf = '{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Courier New;}}';
+            rtf += '{\\colortbl;\\red255\\green255\\blue153;\\red255\\green0\\blue0;\\red255\\green165\\blue0;\\red0\\green0\\blue255;}';
+
+            // Process the HTML to create RTF with highlighting
+            const temp_div = document.createElement('div');
+            temp_div.innerHTML = output_element.innerHTML;
+
+            let rtf_content = '';
+            const walk_nodes = (node) => {
+                if (node.nodeType === 3) { // Text node
+                    rtf_content += node.textContent.replace(/\n/g, '\\par ');
+                } else if (node.classList && node.classList.contains('pii-highlight')) {
+                    // Highlighted text with background color
+                    let color_index = '\\highlight1'; // Yellow background
+                    if (node.classList.contains('confidence-high')) {
+                        rtf_content += '{\\b\\highlight1 ' + node.textContent + '}';
+                    } else {
+                        rtf_content += '{\\highlight1 ' + node.textContent + '}';
+                    }
+                } else {
+                    // Regular processing for other elements
+                    for (let child of node.childNodes) {
+                        walk_nodes(child);
+                    }
+                }
+            };
+
+            walk_nodes(temp_div);
+            rtf += '\\f0\\fs24 ' + rtf_content + '}';
+            return rtf;
+        }
+
+        // Create RTF formatted text with bold redactions
+        function create_rtf_formatted_text(text) {
+            // RTF header
+            let rtf = '{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}';
+
+            // Replace [REDACTED] patterns with bold RTF formatting
+            let formatted_text = text.replace(/(\[[A-Z-]+-REDACTED\])/g, '{\\b $1\\b0}');
+
+            // Escape RTF special characters
+            formatted_text = formatted_text
+                .replace(/\\/g, '\\\\')
+                .replace(/\{/g, '\\{')
+                .replace(/\}/g, '\\}')
+                .replace(/\n/g, '\\par ')
+                .replace(/\r/g, '');
+
+            // Re-apply the bold formatting after escaping
+            formatted_text = formatted_text.replace(/\\\{\\\\b ([^\\]+)\\\\b0\\\}/g, '{\\b $1\\b0}');
+
+            rtf += '\\f0\\fs24 ' + formatted_text + '}';
+            return rtf;
+        }
+
+        // Create HTML formatted text with bold redactions
+        function create_html_formatted_text(text) {
+            let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>';
+            html += '<div style="font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.4;">';
+
+            // Use <b> tag with inline style for better Firefox support
+            let formatted_text = text.replace(/(\[[A-Z-]+-REDACTED\])/g, '<b style="font-weight: bold !important;">$1</b>');
+
+            // Convert line breaks to HTML
+            formatted_text = formatted_text.replace(/\n/g, '<br>');
+
+            html += formatted_text + '</div></body></html>';
+            return html;
+        }
+
+        // Show copy success message
+        function show_copy_success() {
+            remove_pulse('copyButton');
+
+            const button = document.getElementById('copyButton');
+            const original_text = button.textContent;
+            button.textContent = '✓ Copied!';
+            setTimeout(() => {
+                button.textContent = original_text;
+            }, 2000);
+        }
+
+        function export_results() {
+            if (state.detections.length === 0) {
+                alert('No detections to export. Run Privacy Scan first.');
+                return;
+            }
+
+            document.getElementById('overlay').style.display = 'block';
+            document.getElementById('exportDialog').style.display = 'block';
+        }
+
+        // Export in specific format
+        function export_format(format) {
+            const now = new Date();
+            const formatted_date = format_date(now);
+            const filename_date = format_date_filename(now);
+            const input_text = document.getElementById('inputText').value;
+
+            let content, filename, mime_type;
+
+            switch (format) {
+                case 'docx':
+                    content = generate_docx_report(input_text, formatted_date);
+                    filename = `${filename_date} ReflectionLoop - Report.doc`;
+                    mime_type = 'application/msword';
+                    break;
+
+                case 'pdf':
+                    generate_pdf_report_auto(formatted_date, filename_date);
+                    return;
+
+                case 'csv':
+                    content = generate_csv_report(formatted_date);
+                    filename = `${filename_date} ReflectionLoop - Report.csv`;
+                    mime_type = 'text/csv';
+                    break;
+
+                case 'txt':
+                    content = generate_text_report(input_text, formatted_date);
+                    filename = `${filename_date} ReflectionLoop - Report.txt`;
+                    mime_type = 'text/plain';
+                    break;
+
+            }
+
+            // Download file
+            const blob = new Blob([content], { type: mime_type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            close_dialog();
+        }
+
+        // Format date for display
+        function format_date(date) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            return date.toLocaleDateString('en-US', options);
+        }
+
+        // Format date for filename
+        function format_date_filename(date) {
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${month}-${day}-${year}`;
+        }
+
+        // Generate DOCX report
+        function generate_docx_report(input_text, formatted_date) {
+            let html = `<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+<head>
+    <meta charset="UTF-8">
+    <title>Privacy Report</title>
+    <!--[if gte mso 9]>
+    <xml>
+        <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+        </w:WordDocument>
+    </xml>
+    <![endif]-->
+    <!--[if (mso)|(mso 16)]>
+    <style type="text/css">
+        body, table, td, h1, h2, h3, h4, h5, h6, p, div, span { 
+            text-decoration: none !important;
+            text-decoration-line: none !important;
+            mso-text-decoration: none !important;
+        }
+    </style>
+    <![endif]-->
+    <style>
+        /* Microsoft Word compatibility styling for proper document alignment */
+        @page Section1 {
+            size: 8.5in 11.0in;
+            margin: 1.0in 1.0in 1.0in 1.0in;
+            mso-header-margin: .5in;
+            mso-footer-margin: .5in;
+            mso-paper-source: 0;
+        }
+        
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0;
+            padding: 40px;
+            direction: ltr !important;
+            text-align: left !important;
+            text-indent: 0pt !important;
+            margin-left: 0pt !important;
+            /* Word-specific properties */
+            mso-line-height-rule: exactly;
+            mso-pagination: widow-orphan;
+        }
+        
+        /* Microsoft Word paragraph alignment configuration */
+        h1, h2, h3, h4, h5, h6, p, div, span, section {
+            direction: ltr !important;
+            text-align: left !important;
+            text-indent: 0pt !important;
+            margin-left: 0pt !important;
+            padding-left: 0pt !important;
+            /* Word-specific alignment properties */
+            mso-para-margin-top: 0pt;
+            mso-para-margin-right: 0pt;
+            mso-para-margin-bottom: 6.0pt;
+            mso-para-margin-left: 0pt;
+            mso-line-height-rule: exactly;
+            text-autospace: none;
+        }
+        
+        h1, h2, h3, h4, h5, h6 { 
+            color: #0A246A;
+            font-weight: bold;
+            margin-top: 0pt !important;
+            margin-bottom: 10pt !important;
+        }
+        
+        /* Header section - Word compatible */
+        .header { 
+            margin-bottom: 20pt;
+            direction: ltr !important;
+            text-align: left !important;
+        }
+        
+        .header h1, .header p {
+            direction: ltr !important;
+            text-align: left !important;
+            text-indent: 0pt !important;
+            margin-left: 0pt !important;
+            padding-left: 0pt !important;
+            text-decoration: none !important;
+            /* Remove any underlines */
+            mso-text-decoration: none;
+        }
+        
+        /* Section alignment - Word compatible */
+        .section { 
+            margin: 20pt 0pt;
+            direction: ltr !important;
+            text-align: left !important;
+            text-indent: 0pt !important;
+            margin-left: 0pt !important;
+            padding-left: 0pt !important;
+        }
+        
+        .section h2, .section p {
+            direction: ltr !important;
+            text-align: left !important;
+            text-indent: 0pt !important;
+            margin-left: 0pt !important;
+            padding-left: 0pt !important;
+        }
+        
+        /* Detection styling - Word compatible */
+        .detection { 
+            margin: 10pt 0pt; 
+            padding: 10pt; 
+            direction: ltr !important;
+            text-align: left !important;
+            text-indent: 0pt !important;
+        }
+        
+        /* Sanitized text - Word compatible monospace */
+        .sanitized-text {
+            font-family: 'Courier New', monospace;
+            font-size: 11pt;
+            line-height: 1.3;
+            color: black;
+            background: white;
+            border: none;
+            padding: 0pt !important;
+            margin: 10pt 0pt;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            direction: ltr !important;
+            text-align: left !important;
+            text-indent: 0pt !important;
+            margin-left: 0pt !important;
+            padding-left: 0pt !important;
+            /* Word-specific monospace handling */
+            mso-ascii-font-family: 'Courier New';
+            mso-hansi-font-family: 'Courier New';
+        }
+        
+        /* Bold redacted items in Word documents */
+        .sanitized-text strong {
+            font-weight: bold;
+            color: black;
+            background: white;
+        }
+        
+        /* Microsoft Word paragraph formatting override */
+        p {
+            direction: ltr !important;
+            text-align: left !important;
+            text-indent: 0pt !important;
+            margin-left: 0pt !important;
+            padding-left: 0pt !important;
+            margin-top: 0pt;
+            margin-bottom: 6pt;
+            text-decoration: none !important;
+            /* Word-specific paragraph properties */
+            mso-pagination: widow-orphan;
+            mso-outline-level: body-text;
+            mso-text-decoration: none;
+        }
+        
+        /* Universal left alignment override for Word */
+        * {
+            direction: ltr !important;
+            text-align: left !important;
+            text-indent: 0pt !important;
+            margin-left: 0pt !important;
+            padding-left: 0pt !important;
+            text-decoration: none !important;
+            text-decoration-line: none !important;
+            mso-text-decoration: none !important;
+            mso-text-decoration-line: none !important;
+        }
+        
+        /* Additional MSO-specific underline removal */
+        h1, h2, h3, h4, h5, h6, p, div, span, strong, em {
+            text-decoration: none !important;
+            text-decoration-line: none !important;
+            mso-text-decoration: none !important;
+            mso-text-decoration-line: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div style="margin-top: 18pt; margin-bottom: 0pt;">&nbsp;</div>
+    <div class="header" style="margin-bottom: 20pt; text-decoration: none; text-decoration-line: none;">
+        <h1 style="color: #0A246A; font-weight: bold; margin-top: 0pt; margin-bottom: 10pt; text-decoration: none !important; text-decoration-line: none !important;">ReflectionLoop Privacy Report</h1>
+        <p style="text-decoration: none !important; text-decoration-line: none !important; margin-bottom: 8pt;">Total: ${state.detections.length} | Excluded: ${state.excluded_indices.size}</p>
+    </div>
+    
+    <div class="section" style="margin: 5pt 0pt; text-decoration: none !important; text-decoration-line: none !important;">
+        <div class="sanitized-text" style="font-family: 'Courier New', monospace; font-size: 11pt; line-height: 1.3; color: black; background: white; margin: 10pt 0pt; white-space: pre-wrap; word-wrap: break-word; text-decoration: none !important; text-decoration-line: none !important;">${make_redactions_bold_for_export(state.sanitized_text || sanitize_and_return()).split('\n').map(line => line || '&nbsp;').join('<br>')}</div>
+    </div>
+    
+<div class="section" style="margin: 20pt 0pt; text-decoration: none !important; text-decoration-line: none !important;">
+        <h2 style="color: #0A246A; font-weight: bold; margin-bottom: 10pt; text-decoration: none !important; text-decoration-line: none !important;">Detections</h2>`;
+
+            state.detections.forEach((d, i) => {
+                const excluded = state.excluded_indices.has(i);
+                html += `
+        <div class="detection" style="margin: 10pt 0pt; padding: 10pt; text-decoration: none !important; text-decoration-line: none !important;">
+            <strong style="text-decoration: none !important; text-decoration-line: none !important;">${d.type}</strong> (${d.category})${excluded ? ' - EXCLUDED' : ''}<br>
+            <span style="text-decoration: none !important; text-decoration-line: none !important;">Original: "${d.text}"</span><br>
+            <span style="text-decoration: none !important; text-decoration-line: none !important;">Replacement: ${d.replacement}</span>
+        </div>`;
+            });
+
+            html += `
+    </div>
+    
+    <div class="section" style="margin: 20pt 0pt; text-decoration: none !important; text-decoration-line: none !important;">
+        <p style="text-decoration: none !important; text-decoration-line: none !important;"><small style="text-decoration: none !important; text-decoration-line: none !important;">© Chad Wigington | ReflectionLoop | https://www.linkedin.com/in/chadwigington/</small></p>
+    </div>
+</body>
+</html>`;
+
+            return html;
+        }
+
+        // Helper function to make redactions bold in export documents
+        function make_redactions_bold_for_export(text) {
+            return text.replace(/(\[[A-Z-]+-REDACTED\])/g, '<strong>$1</strong>');
+        }
+
+        // Generate text report
+        function generate_text_report(input_text, formatted_date) {
+            let report = '===================================================================\n';
+            report += 'ReflectionLoop Privacy Report\n';
+            report += `Generated: ${formatted_date}\n`;
+            report += '\n';
+            report += '===================================================================\n\n';
+
+            report += `SUMMARY\n`;
+            report += `Total: ${state.detections.length}\n`;
+            report += `Excluded: ${state.excluded_indices.size}\n\n`;
+
+            report += '\n\nSANITIZED TEXT:\n';
+            report += '='.repeat(50) + '\n';
+            report += state.sanitized_text || sanitize_and_return();
+
+            report += '\n\nDETAILED FINDINGS:\n';
+            report += '-'.repeat(50) + '\n';
+
+            state.detections.forEach((d, i) => {
+                const excluded = state.excluded_indices.has(i);
+                report += `\n${i + 1}. ${d.type} (${d.category})${excluded ? ' - EXCLUDED' : ''}\n`;
+                report += `   Original: "${d.text}"\n`;
+                report += `   Position: ${d.start}-${d.end}\n`;
+                report += `   Replacement: ${d.replacement}\n`;
+            });
+
+            report += '\n\n===================================================================\n';
+            report += '© Chad Wigington | ReflectionLoop\n';
+            report += 'https://www.linkedin.com/in/chadwigington/\n';
+
+            return report;
+        }
+
+        // Generate CSV report
+        function generate_csv_report(formatted_date) {
+            let csv = 'Detection #,Type,Category,Original Text,Position Start,Position End,Replacement,Excluded\n';
+
+            state.detections.forEach((d, i) => {
+                const excluded = state.excluded_indices.has(i) ? 'Yes' : 'No';
+                csv += `${i + 1},"${d.type}","${d.category}","${d.text.replace(/"/g, '""')}",${d.start},${d.end},"${d.replacement}",${excluded}\n`;
+            });
+
+            return csv;
+        }
+
+
+        // Sanitize and return text without displaying
+        function sanitize_and_return() {
+            const input_text = document.getElementById('inputText').value;
+            let sanitized = input_text;
+
+            for (let i = state.detections.length - 1; i >= 0; i--) {
+                if (state.excluded_indices.has(i)) continue;
+                const detection = state.detections[i];
+                sanitized = sanitized.substring(0, detection.start) +
+                    detection.replacement +
+                    sanitized.substring(detection.end);
+            }
+
+            return sanitized;
+        }
+
+        // Generate PDF report using browser print-to-PDF (air-gapped secure)
+        function generate_pdf_report_auto(formatted_date, filename_date) {
+            // Create formatted content that mirrors original PDF layout
+            const contentHTML = `
+            <div id="pdf-content" style="font-family: Arial, sans-serif; padding: 20px; background: white; color: black;">
+                <h1 style="color: #0A246A; margin-bottom: 20px;">ReflectionLoop Privacy Report</h1>
+                <p style="margin-bottom: 10px;">Generated: ${formatted_date}</p>
+                
+                <p style="margin-bottom: 10px;">Total: ${state.detections.length}</p>
+                <p style="margin-bottom: 20px;">Excluded: ${state.excluded_indices.size}</p>
+                
+                <br>
+                <div style="background: white; padding: 15px; margin-bottom: 20px; font-family: 'Courier New', monospace; white-space: pre-wrap; word-wrap: break-word;">
+${(state.sanitized_text || sanitize_and_return()).replace(/\[([A-Z-]+-REDACTED)\]/g, '<strong>[$1]</strong>')}
+                </div>
+                
+                <h2 style="color: #0A246A; margin-top: 30px; margin-bottom: 15px;">Detection Details</h2>
+                ${state.detections.map((d, i) => {
+                const excluded = state.excluded_indices.has(i);
+                return `<div style="margin-bottom: 15px; padding: 10px; border-left: 3px solid #0A246A; background: white; page-break-inside: avoid;">
+                        <strong>${d.type} (${d.category})${excluded ? ' - EXCLUDED' : ''}</strong><br>
+                        Original: "${d.text}"<br>
+                        Replacement: ${d.replacement}
+                    </div>`;
+            }).join('')}
+                
+                <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #666;">
+                    © Chad Wigington | ReflectionLoop | https://www.linkedin.com/in/chadwigington/
+                </div>
+            </div>`;
+
+            // Create print window with proper styling
+            const print_window = window.open('', '_blank');
+            print_window.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+    <title>${filename_date} ReflectionLoop Privacy Report</title>
+    <style>
+        @media print {
+            body { margin: 0; }
+            @page { margin: 1in; }
+        }
+        body { 
+            font-family: Arial, sans-serif; 
+            line-height: 1.4; 
+            color: black; 
+            background: white; 
+        }
+        h1, h2 { color: #0A246A; }
+        .sanitized-text { 
+            font-family: 'Courier New', monospace; 
+            background: #f9f9f9; 
+            padding: 10px; 
+            border: 1px solid #ddd;
+        }
+    </style>
+    <script>
+        // Auto-close solution that works cross-browser
+        window.onload = function() {
+            // Trigger print after load
+            setTimeout(function() {
+                window.print();
+            }, 250);
+            
+            // Solution 1: onafterprint event (works in most modern browsers)
+            window.onafterprint = function() {
+                window.close();
+            };
+            
+            // Solution 2: Focus-based fallback for browsers without onafterprint
+            window.onfocus = function() {
+                // Small delay to ensure print dialog has closed
+                setTimeout(function() {
+                    window.close();
+                }, 500);
+            };
+            
+            // Solution 3: Failsafe timer (closes after 30 seconds regardless)
+            setTimeout(function() {
+                window.close();
+            }, 30000);
+        };
+    <\/script>
+</head>
+<body>
+    ${contentHTML}
+</body>
+</html>`);
+            print_window.document.close();
+
+            close_dialog();
+        }
+
+        function clear_all() {
+            if (state.detections.length > 0 || document.getElementById('inputText').value) {
+                if (!confirm('Clear all text and results?')) {
+                    return;
+                }
+            }
+
+            document.getElementById('inputText').value = '';
+            document.getElementById('outputText').innerHTML = 'Results will appear here after detection.';
+            document.getElementById('outputText').style.color = '#777777';
+            document.getElementById('outputText').contentEditable = false;
+
+            state.detections = securityManager.clearSensitiveData(state.detections) || [];
+            state.excluded_indices.clear();
+            state.sanitized_text = '';
+
+            document.getElementById('detectButton').disabled = false;
+            document.getElementById('uploadButton').disabled = false;
+            document.getElementById('sanitizeButton').disabled = true;
+            document.getElementById('copyButton').disabled = true;
+            document.getElementById('exportButton').disabled = true;
+
+            // Clear timer but keep it visible
+            clear_auto_clear_timer();
+            // Reset timer display to 05:00
+            document.getElementById('timerDisplay').textContent = '05:00';
+            document.getElementById('timerDisplay').style.color = ''; // Reset timer color
+
+            remove_all_pulses();
+            update_input_stats();
+            update_statistics();
+        }
+
+        // New function for clearing without confirmation (used by timer)
+        function clear_all_no_confirm() {
+            document.getElementById('inputText').value = '';
+            document.getElementById('outputText').innerHTML = 'Results will appear here after detection.';
+            document.getElementById('outputText').style.color = '#777777';
+            document.getElementById('outputText').contentEditable = false;
+
+            state.detections = securityManager.clearSensitiveData(state.detections) || [];
+            state.excluded_indices.clear();
+            state.sanitized_text = '';
+
+            document.getElementById('detectButton').disabled = false;
+            document.getElementById('uploadButton').disabled = false;
+            document.getElementById('sanitizeButton').disabled = true;
+            document.getElementById('copyButton').disabled = true;
+            document.getElementById('exportButton').disabled = true;
+
+            // Reset timer display to 05:00
+            document.getElementById('timerDisplay').textContent = '05:00';
+            document.getElementById('timerDisplay').style.color = ''; // Reset timer color
+
+            remove_all_pulses();
+            update_input_stats();
+            update_statistics();
+        }
+
+        function show_tooltip(event, text) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.textContent = text;
+            tooltip.style.display = 'block';
+            tooltip.style.left = event.pageX + 10 + 'px';
+            tooltip.style.top = event.pageY - 25 + 'px';
+        }
+
+        function hide_tooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        // Make functions globally accessible for onclick handlers
+        window.clear_all = clear_all;
+        window.show_help = show_help;
+        window.close_help = close_help;
+        window.export_results = export_results;
+        window.copy_sanitized = copy_sanitized;
+        window.sanitize_text = sanitize_text;
+        window.detect_pii = detect_pii;
+        window.export_format = export_format;
+        window.close_dialog = close_dialog;
+        window.toggle_detection = toggle_detection;
+        window.show_tooltip = show_tooltip;
+        window.hide_tooltip = hide_tooltip;
+
+        // Simple file upload to input box
+        window.loadFile = function () {
+            const file = document.getElementById('uploadFile').files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                // Just put the file content in the input box
+                document.getElementById('inputText').value = e.target.result;
+
+                // Update the character count
+                update_input_stats();
+
+                // Reset the file input
+                document.getElementById('uploadFile').value = '';
+            };
+
+            reader.readAsText(file);
+        };
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('inputText').addEventListener('input', update_input_stats);
+    setupPasteHandler();  // <-- This line is important
+    document.getElementById('overlay').addEventListener('click', close_dialog);
+
+    update_input_stats();
+    update_statistics();
+
+    // Initialize BlurSession.com blur security
+    blurSecurity.setupListeners();
+
+    // Console messages
+    console.log('ReflectionLoop = [TEXT REDACTOR]');
+    console.log('© Chad Wigington | https://www.linkedin.com/in/chadwigington/');
+});
+    </script>
+</body>
+
+</html>
